@@ -1,0 +1,6 @@
+tensorflow
+tensorflow-gpu
+Keras==2.2.4
+numpy==1.13.3
+matplotlib
+pillow
