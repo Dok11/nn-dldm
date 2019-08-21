@@ -97,25 +97,13 @@ class DataCollector:
                     inputs_x1.append(image_pair[0])  # current
                     inputs_x2.append(image_pair[1])  # and previous frame
                     outputs.append((
-                        # delta_item['loc']['x'],
-                        # delta_item['loc']['y'],
-                        # delta_item['loc']['z'],
-                        # delta_item['rot']['w'],
+                        delta_item['loc']['x'],
+                        delta_item['loc']['y'],
+                        delta_item['loc']['z'],
+                        delta_item['rot']['w'],
                         delta_item['rot']['x'],
                         delta_item['rot']['y'],
                         delta_item['rot']['z'],
-                    ))
-
-                    # inverted
-                    inputs_x1.append(image_pair[1])  # current
-                    inputs_x2.append(image_pair[0])  # and previous frame
-                    outputs.append((
-                        # -delta_item['loc']['x'],
-                        # -delta_item['loc']['y'],
-                        # -delta_item['loc']['z'],
-                        -delta_item['rot']['x'],
-                        -delta_item['rot']['y'],
-                        -delta_item['rot']['z'],
                     ))
 
                 count += 1
