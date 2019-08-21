@@ -81,7 +81,7 @@ for input_idx in range(INPUT_NUMS):
     inputs.append(model_input)
 
     # 90x60 -> 23x15
-    model = Conv2D(64, (11, 11), strides=4, input_shape=IMG_SHAPE, padding='same')(model_input)
+    model = Conv2D(64, (11, 11), strides=4, input_shape=IMG_SHAPE, padding='valid')(model_input)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     model = MaxPooling2D(pool_size=(2, 2))(model)
@@ -106,8 +106,8 @@ for input_idx in range(INPUT_NUMS):
 merged_layers = concatenate(input_models)
 
 merged_layers = Flatten()(merged_layers)
-merged_layers = Dense(512, activation='relu')(merged_layers)
-merged_layers = Dropout(0.5)(merged_layers)
+merged_layers = Dense(1024, activation='relu')(merged_layers)
+merged_layers = Dropout(0.35)(merged_layers)
 
 output = Dense(7, kernel_initializer='normal', activation='linear')(merged_layers)
 model = Model(inputs=inputs, outputs=output)
@@ -159,7 +159,7 @@ for batch in range(1000000):
 
     logs = model.train_on_batch(x=[images_x1, images_x2], y=images_y)
 
-    if batch % 100 == 0:
+    if batch % 250 == 0:
         # check model on the train data
         train_idx = np.random.randint(0, len(train_x1), 64)
         m_loss = model.test_on_batch(x=[train_x1[train_idx], train_x2[train_idx]], y=train_y[train_idx])
@@ -169,10 +169,10 @@ for batch in range(1000000):
         v_loss = model.test_on_batch(x=[test_x1[valid_idx], test_x2[valid_idx]], y=test_y[valid_idx])
         predict = model.predict(x=[images_x1_p, images_x2_p])
 
-        print('%d [loss: %f, t.acc.: %.2f%%, v.acc.: %.2f%%]' % (batch, m_loss[0], m_loss[1], v_loss[1]))
+        print('%d [loss: %f, t.acc.: %.2f%%, v.acc.: %.2f%%]' % (batch, m_loss[0], m_loss[1]*100, v_loss[1]*100))
         print('predict', predict[0])
         print('train  ', train_y_p[0])
         write_log(callback, train_names, logs, batch)
         write_log(callback, val_names, v_loss, batch)
 
-        # save_models(model)
+        save_models(model)
