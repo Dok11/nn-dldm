@@ -72,21 +72,21 @@ for input_idx in range(INPUT_NUMS):
     model = MaxPooling2D(pool_size=(2, 2))(model)
     model = Dropout(0.4)(model)
 
-    # 45x30 -> 23x15
+    # 45x30 -> 22x15
     model = Conv2D(64, (3, 3), padding='same')(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     model = MaxPooling2D(pool_size=(2, 2))(model)
     model = Dropout(0.4)(model)
 
-    # 21x14 -> 9x6
+    # 22x15 -> 11x7
     model = Conv2D(128, (3, 3), padding='same')(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     model = MaxPooling2D(pool_size=(2, 2))(model)
     model = Dropout(0.4)(model)
 
-    # 9x6 -> 4x3
+    # 11x7 -> 5x3
     model = Conv2D(256, (3, 3), padding='same')(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
@@ -101,9 +101,9 @@ merged_layers = Flatten()(merged_layers)
 merged_layers = Dense(512, activation='relu')(merged_layers)
 merged_layers = Dropout(0.5)(merged_layers)
 
-output = Dense(1, activation='linear')(merged_layers)
+output = Dense(7, activation='linear')(merged_layers)
 model = Model(inputs=inputs, outputs=output)
-model.compile(optimizer=Adam(0.0001), loss='mse', metrics=['mae'])
+model.compile(optimizer=Adam(0.0001), loss='mse', metrics=['accuracy'])
 model.summary()
 
 
@@ -114,22 +114,22 @@ model.summary()
 log_path = './logs'
 callback = TensorBoard(log_path)
 callback.set_model(model)
-train_names = ['train_loss', 'train_mae']
-val_names = ['val_loss', 'val_mae']
+train_names = ['train_loss', 'train_accuracy']
+val_names = ['val_loss', 'val_accuracy']
 
 file_data = get_dataset()
 
-train_and_valid_edge = 8000
+train_and_valid_edge = 4000
 
 # train
 train_x1 = file_data['x1'][:train_and_valid_edge]
 train_x2 = file_data['x2'][:train_and_valid_edge]
-train_y = file_data['y'][:train_and_valid_edge, 0]
+train_y = file_data['y'][:train_and_valid_edge]
 
 # test
 test_x1 = file_data['x1'][train_and_valid_edge:]
 test_x2 = file_data['x2'][train_and_valid_edge:]
-test_y = file_data['y'][train_and_valid_edge:, 0]
+test_y = file_data['y'][train_and_valid_edge:]
 
 # predict
 idx_p = [0]
