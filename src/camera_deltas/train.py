@@ -1,5 +1,7 @@
 import os
 
+import shutil
+import keras
 import tensorflow as tf
 import numpy as np
 from keras import Input, Model
@@ -39,6 +41,9 @@ def get_dataset():
 
 
 # tensorboard --logdir=./logs --host=127.0.0.1
+shutil.rmtree(os.path.join(CURRENT_DIR, 'logs'), ignore_errors=True)
+
+
 def write_log(callback, names, logs, batch_no):
     for name, value in zip(names, logs):
         summary = tf.Summary()
@@ -58,6 +63,16 @@ def save_models(model_for_save):
 # --- Construct neural network -----------------------------------------------
 # ----------------------------------------------------------------------------
 
+BETA = 10
+
+
+def custom_objective(y_true, y_pred):
+    error = keras.backend.square(y_pred - y_true)
+    trans_mag = keras.backend.sqrt(error[0] + error[1] + error[2])
+    orient_mag = keras.backend.sqrt(error[3] + error[4] + error[5] + error[6])
+    return keras.backend.mean(trans_mag + (BETA * orient_mag))
+
+
 inputs = []
 input_models = []
 
@@ -65,33 +80,26 @@ for input_idx in range(INPUT_NUMS):
     model_input = Input(shape=IMG_SHAPE)
     inputs.append(model_input)
 
-    # 90x60 -> 45x30
-    model = Conv2D(32, (3, 3), input_shape=IMG_SHAPE, padding='same')(model_input)
+    # 90x60 -> 23x15
+    model = Conv2D(64, (11, 11), strides=4, input_shape=IMG_SHAPE, padding='same')(model_input)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     model = MaxPooling2D(pool_size=(2, 2))(model)
-    model = Dropout(0.4)(model)
+    model = Dropout(0.2)(model)
 
-    # 45x30 -> 22x15
-    model = Conv2D(64, (3, 3), padding='same')(model)
+    # 23x15 -> 11x7
+    model = Conv2D(96, (5, 5), padding='same')(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     model = MaxPooling2D(pool_size=(2, 2))(model)
-    model = Dropout(0.4)(model)
-
-    # 22x15 -> 11x7
-    model = Conv2D(128, (3, 3), padding='same')(model)
-    model = BatchNormalization()(model)
-    model = Activation('relu')(model)
-    model = MaxPooling2D(pool_size=(2, 2))(model)
-    model = Dropout(0.4)(model)
+    model = Dropout(0.2)(model)
 
     # 11x7 -> 5x3
-    model = Conv2D(256, (3, 3), padding='same')(model)
+    model = Conv2D(196, (3, 3), padding='same')(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     model = MaxPooling2D(pool_size=(2, 2))(model)
-    model = Dropout(0.25)(model)
+    model = Dropout(0.2)(model)
 
     input_models.append(model)
 
@@ -101,9 +109,9 @@ merged_layers = Flatten()(merged_layers)
 merged_layers = Dense(512, activation='relu')(merged_layers)
 merged_layers = Dropout(0.5)(merged_layers)
 
-output = Dense(7, activation='linear')(merged_layers)
+output = Dense(7, kernel_initializer='normal', activation='linear')(merged_layers)
 model = Model(inputs=inputs, outputs=output)
-model.compile(optimizer=Adam(0.0001), loss='mse', metrics=['accuracy'])
+model.compile(optimizer=Adam(0.0001, decay=0.00001), loss=custom_objective, metrics=['accuracy'])
 model.summary()
 
 
