@@ -12,6 +12,9 @@ DATA_SLICE: int = 1
 MAX_COUNT: int = 1000000  # per slice
 TRAIN_DATA_PART = 15
 
+# some frames have different around 90 deg. Skip them
+SKIP_FRAMES = [51, 101, 151, 201, 251, 301, 351, 401, 451]
+
 
 class DataCollector:
     def __init__(self):
@@ -91,6 +94,9 @@ class DataCollector:
             count = 0
 
             for delta_item in self.deltas[slice_index::DATA_SLICE]:
+                if delta_item['frame'] in SKIP_FRAMES:
+                    continue
+
                 image_pairs = self.get_data_image_pairs(delta_item)
 
                 for image_pair in image_pairs:
