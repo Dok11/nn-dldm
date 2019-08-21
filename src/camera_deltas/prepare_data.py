@@ -100,6 +100,7 @@ class DataCollector:
                         # delta_item['loc']['x'],
                         # delta_item['loc']['y'],
                         # delta_item['loc']['z'],
+                        # delta_item['rot']['w'],
                         delta_item['rot']['x'],
                         delta_item['rot']['y'],
                         delta_item['rot']['z'],
