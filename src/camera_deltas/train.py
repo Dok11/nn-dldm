@@ -19,8 +19,8 @@ SIZE_Y = 60
 INPUT_NUMS = 2
 IMG_SHAPE = (SIZE_Y, SIZE_X, 1)
 CURRENT_DIR: str = os.getcwd()
-SAVED_MODEL: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'camera-pose', 'model.h5')
-SAVED_MODEL_W: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'camera-pose', 'model_w.h5')
+SAVED_MODEL: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'camera_deltas', 'model.h5')
+SAVED_MODEL_W: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'camera_deltas', 'model_w.h5')
 
 
 # ============================================================================
@@ -28,7 +28,7 @@ SAVED_MODEL_W: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'camera-pos
 # ----------------------------------------------------------------------------
 
 def get_dataset():
-    file_path = os.path.join(CURRENT_DIR, '..', '..', 'train-data', 'deltas', 'data_000.npz')
+    file_path = os.path.join(CURRENT_DIR, '..', '..', 'train-data', 'camera_deltas', 'data_000.npz')
     file_data = np.load(file_path)
 
     result = {

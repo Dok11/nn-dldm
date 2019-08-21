@@ -117,7 +117,7 @@ class DataCollector:
                     break
 
             slice_str = str(slice_index).zfill(3)
-            train_dir = os.path.join(CURRENT_DIR, '..', '..', 'train-data', 'deltas')
+            train_dir = os.path.join(CURRENT_DIR, '..', '..', 'train-data', 'camera_deltas')
 
             if not (os.path.isdir(train_dir)):
                 os.mkdir(train_dir)
