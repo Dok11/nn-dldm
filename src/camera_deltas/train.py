@@ -4,7 +4,8 @@ import tensorflow as tf
 import numpy as np
 from keras import Input, Model
 from keras.callbacks import TensorBoard
-from keras.layers import Conv2D, LeakyReLU, Dropout, BatchNormalization, Flatten, Dense, concatenate
+from keras.layers import Conv2D, Dropout, BatchNormalization, Flatten, Dense, concatenate, Activation, \
+    MaxPooling2D
 from keras.optimizers import Adam
 
 # ============================================================================
@@ -65,33 +66,44 @@ for input_idx in range(INPUT_NUMS):
     inputs.append(model_input)
 
     # 90x60 -> 45x30
-    model = Conv2D(64, kernel_size=3, strides=2, input_shape=IMG_SHAPE, padding='same')(model_input)
-    model = LeakyReLU(alpha=0.2)(model)
-    model = Dropout(0.2)(model)
+    model = Conv2D(32, (3, 3), input_shape=IMG_SHAPE, padding='same')(model_input)
+    model = BatchNormalization()(model)
+    model = Activation('relu')(model)
+    model = MaxPooling2D(pool_size=(2, 2))(model)
+    model = Dropout(0.4)(model)
 
     # 45x30 -> 23x15
-    model = Conv2D(128, kernel_size=3, strides=2, padding='same')(model)
-    model = BatchNormalization(momentum=0.8)(model)
-    model = LeakyReLU(alpha=0.2)(model)
-    model = Dropout(0.2)(model)
+    model = Conv2D(64, (3, 3), padding='same')(model)
+    model = BatchNormalization()(model)
+    model = Activation('relu')(model)
+    model = MaxPooling2D(pool_size=(2, 2))(model)
+    model = Dropout(0.4)(model)
 
-    # 23x15 -> 12x8
-    model = Conv2D(256, kernel_size=3, strides=2, padding='same')(model)
-    model = BatchNormalization(momentum=0.8)(model)
-    model = LeakyReLU(alpha=0.2)(model)
-    model = Dropout(0.2)(model)
+    # 21x14 -> 9x6
+    model = Conv2D(128, (3, 3), padding='same')(model)
+    model = BatchNormalization()(model)
+    model = Activation('relu')(model)
+    model = MaxPooling2D(pool_size=(2, 2))(model)
+    model = Dropout(0.4)(model)
+
+    # 9x6 -> 4x3
+    model = Conv2D(256, (3, 3), padding='same')(model)
+    model = BatchNormalization()(model)
+    model = Activation('relu')(model)
+    model = MaxPooling2D(pool_size=(2, 2))(model)
+    model = Dropout(0.25)(model)
 
     input_models.append(model)
 
 merged_layers = concatenate(input_models)
 
 merged_layers = Flatten()(merged_layers)
-merged_layers = Dense(512, activation='linear')(merged_layers)
-merged_layers = Dropout(0.2)(merged_layers)
+merged_layers = Dense(512, activation='relu')(merged_layers)
+merged_layers = Dropout(0.5)(merged_layers)
 
-output = Dense(3, activation='linear')(merged_layers)
+output = Dense(1, activation='linear')(merged_layers)
 model = Model(inputs=inputs, outputs=output)
-model.compile(optimizer=Adam(0.00001, 0.5), loss='mean_squared_error', metrics=['mae'])
+model.compile(optimizer=Adam(0.0001), loss='mse', metrics=['mae'])
 model.summary()
 
 
@@ -107,40 +119,52 @@ val_names = ['val_loss', 'val_mae']
 
 file_data = get_dataset()
 
+train_and_valid_edge = 8000
+
 # train
-train_x1 = file_data['x1'][:8000]
-train_x2 = file_data['x2'][:8000]
-train_y = file_data['y'][:8000]
+train_x1 = file_data['x1'][:train_and_valid_edge]
+train_x2 = file_data['x2'][:train_and_valid_edge]
+train_y = file_data['y'][:train_and_valid_edge, 0]
 
 # test
-test_x1 = file_data['x1'][8000:]
-test_x2 = file_data['x2'][8000:]
-test_y = file_data['y'][8000:]
+test_x1 = file_data['x1'][train_and_valid_edge:]
+test_x2 = file_data['x2'][train_and_valid_edge:]
+test_y = file_data['y'][train_and_valid_edge:, 0]
 
 # predict
 idx_p = [0]
-images_x1_p = file_data['x1'][idx_p]
-images_x2_p = file_data['x2'][idx_p]
-train_y_p = file_data['y'][idx_p]
+images_x1_p = test_x1[idx_p]
+images_x2_p = test_x2[idx_p]
+train_y_p = test_y[idx_p]
 
 # train
-for batch in range(100000):
+for batch in range(1000000):
     idx = np.random.randint(0, len(train_x1), 64)
     images_x1 = train_x1[idx]
     images_x2 = train_x2[idx]
     images_y = train_y[idx]
 
+    idx = np.random.randint(0, len(test_x1), 64)
+    test_images_x1 = test_x1[idx]
+    test_images_x2 = test_x2[idx]
+    test_images_y = test_y[idx]
+
     logs = model.train_on_batch(x=[images_x1, images_x2], y=images_y)
 
-    if batch % 500 == 0:
-        test_idx = np.random.randint(0, len(test_x1), 64)
-        m_loss = model.test_on_batch(x=[test_x1[test_idx], test_x2[test_idx]], y=test_y[test_idx])
-        print('%d [D loss: %f, acc.: %.2f%%]' % (batch, m_loss[0], 100 * m_loss[1]))
+    if batch % 100 == 0:
+        # check model on the train data
+        train_idx = np.random.randint(0, len(train_x1), 64)
+        m_loss = model.test_on_batch(x=[train_x1[train_idx], train_x2[train_idx]], y=train_y[train_idx])
 
-        predict = model.predict(x=[test_x1, test_x2])
+        # check model on the validation data
+        valid_idx = np.random.randint(0, len(test_x1), 64)
+        v_loss = model.test_on_batch(x=[test_x1[valid_idx], test_x2[valid_idx]], y=test_y[valid_idx])
+        predict = model.predict(x=[images_x1_p, images_x2_p])
+
+        print('%d [loss: %f, t.acc.: %.2f%%, v.acc.: %.2f%%]' % (batch, m_loss[0], m_loss[1], v_loss[1]))
         print('predict', predict[0])
         print('train  ', train_y_p[0])
         write_log(callback, train_names, logs, batch)
-        write_log(callback, val_names, m_loss, batch)
+        write_log(callback, val_names, v_loss, batch)
 
         # save_models(model)
