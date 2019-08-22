@@ -114,6 +114,10 @@ model = Model(inputs=inputs, outputs=output)
 model.compile(optimizer=Adam(0.0001, decay=0.00001), loss=custom_objective, metrics=['accuracy'])
 model.summary()
 
+if os.path.isfile(SAVED_MODEL_W):
+    model.load_weights(SAVED_MODEL_W)
+    print('weights are loaded')
+
 
 # ============================================================================
 # --- Train and print accuracy -----------------------------------------------
@@ -159,7 +163,7 @@ for batch in range(1000000):
 
     logs = model.train_on_batch(x=[images_x1, images_x2], y=images_y)
 
-    if batch % 250 == 0:
+    if batch % 500 == 0 and batch > 0:
         # check model on the train data
         train_idx = np.random.randint(0, len(train_x1), 64)
         m_loss = model.test_on_batch(x=[train_x1[train_idx], train_x2[train_idx]], y=train_y[train_idx])
