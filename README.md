@@ -48,6 +48,7 @@ Currently uses synthetic images like this:
 3.5. JPEG-glitches
 3.6. Fly on camera lens
 3.7. Different brightness/contrast/hue
+3.8. Dirty camera (like finger print)
 4. Train network for fast result (like 120×90, bw)
 5. Train network for strong result (lik 450×300, rgb)
 
