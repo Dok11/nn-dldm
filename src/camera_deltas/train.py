@@ -101,29 +101,29 @@ for input_idx in range(INPUT_NUMS):
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     model = MaxPooling2D(pool_size=(2, 2))(model)
-    model = Dropout(0.2)(model)
+    model = Dropout(0.35)(model)
 
     # 23x15 -> 11x7
-    model = Conv2D(96, (5, 5), padding='same')(model)
+    model = Conv2D(128, (5, 5), padding='same')(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     model = MaxPooling2D(pool_size=(2, 2))(model)
-    model = Dropout(0.2)(model)
+    model = Dropout(0.35)(model)
 
     # 11x7 -> 5x3
-    model = Conv2D(196, (3, 3), padding='same')(model)
+    model = Conv2D(256, (3, 3), padding='same')(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     model = MaxPooling2D(pool_size=(2, 2))(model)
-    model = Dropout(0.2)(model)
+    model = Dropout(0.35)(model)
 
     input_models.append(model)
 
 merged_layers = concatenate(input_models)
 
 merged_layers = Flatten()(merged_layers)
-merged_layers = Dense(1024, activation='relu')(merged_layers)
-merged_layers = Dropout(0.35)(merged_layers)
+merged_layers = Dense(2048, activation='relu')(merged_layers)
+merged_layers = Dropout(0.4)(merged_layers)
 
 output = Dense(7, kernel_initializer='normal', activation='linear')(merged_layers)
 model = Model(inputs=inputs, outputs=output)
@@ -169,7 +169,7 @@ images_x2_p = test_x2[idx_p]
 train_y_p = test_y[idx_p]
 
 # train
-for batch in range(1000000):
+for batch in range(9000000):
     idx = np.random.randint(0, len(train_x1), 64)
     images_x1 = train_x1[idx]
     images_x2 = train_x2[idx]
