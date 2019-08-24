@@ -63,7 +63,19 @@ def save_models(model_for_save):
 # --- Construct neural network -----------------------------------------------
 # ----------------------------------------------------------------------------
 
-BETA = 10
+def loss_in_cm(y_true, y_pred):
+    y_true *= 100
+    y_pred *= 100
+
+    return keras.backend.sqrt(keras.backend.pow(y_pred[0] - y_true[0], 2) +
+                              keras.backend.pow(y_pred[1] - y_true[1], 2) +
+                              keras.backend.pow(y_pred[2] - y_true[2], 2))
+
+
+# Currently just summarize all errors
+def loss_in_radian(y_true, y_pred):
+    error = keras.backend.square(y_pred - y_true)
+    return error[3] + error[4] + error[5] + error[6]
 
 
 def custom_objective(y_true, y_pred):
@@ -115,7 +127,10 @@ merged_layers = Dropout(0.35)(merged_layers)
 
 output = Dense(7, kernel_initializer='normal', activation='linear')(merged_layers)
 model = Model(inputs=inputs, outputs=output)
-model.compile(optimizer=Adam(0.0001, decay=0.00001), loss=custom_objective, metrics=['accuracy'])
+model.compile(optimizer=Adam(0.00005, decay=0.00001),
+              loss=custom_objective,
+              metrics=[loss_in_cm, loss_in_radian])
+
 model.summary()
 
 if os.path.isfile(SAVED_MODEL_W):
@@ -130,8 +145,8 @@ if os.path.isfile(SAVED_MODEL_W):
 log_path = './logs'
 callback = TensorBoard(log_path)
 callback.set_model(model)
-train_names = ['train_loss', 'train_accuracy']
-val_names = ['val_loss', 'val_accuracy']
+train_names = ['train_loss', 'train_loss_in_cm', 'train_loss_in_radian']
+val_names = ['val_loss', 'val_loss_in_cm', 'val_loss_in_radian']
 
 file_data = get_dataset()
 
@@ -168,18 +183,11 @@ for batch in range(1000000):
     logs = model.train_on_batch(x=[images_x1, images_x2], y=images_y)
 
     if batch % 500 == 0 and batch > 0:
-        # check model on the train data
-        train_idx = np.random.randint(0, len(train_x1), 64)
-        m_loss = model.test_on_batch(x=[train_x1[train_idx], train_x2[train_idx]], y=train_y[train_idx])
-
         # check model on the validation data
         valid_idx = np.random.randint(0, len(test_x1), 64)
         v_loss = model.test_on_batch(x=[test_x1[valid_idx], test_x2[valid_idx]], y=test_y[valid_idx])
-        predict = model.predict(x=[images_x1_p, images_x2_p])
 
-        print('%d [loss: %f, t.acc.: %.2f%%, v.acc.: %.2f%%]' % (batch, m_loss[0], m_loss[1]*100, v_loss[1]*100))
-        print('predict', predict[0])
-        print('train  ', train_y_p[0])
+        print('%d [loss: %f, t.loss.sm.: %.2f, v.loss.sm.: %.2f]' % (batch, logs[0], logs[1], v_loss[1]))
         write_log(callback, train_names, logs, batch)
         write_log(callback, val_names, v_loss, batch)
 
