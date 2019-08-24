@@ -67,10 +67,14 @@ BETA = 10
 
 
 def custom_objective(y_true, y_pred):
+    radian_to_meter_valuable = 5
+
     error = keras.backend.square(y_pred - y_true)
-    trans_mag = keras.backend.sqrt(error[0] + error[1] + error[2])
-    orient_mag = keras.backend.sqrt(error[3] + error[4] + error[5] + error[6])
-    return keras.backend.mean(trans_mag + (BETA * orient_mag))
+
+    trans_mag = keras.backend.sqrt(error[0] + error[1] + error[2])  # x+y+z errors
+    orient_mag = keras.backend.sqrt(error[3] + error[4] + error[5] + error[6])  # w+x+y+z errors
+
+    return keras.backend.mean(trans_mag + (radian_to_meter_valuable * orient_mag))
 
 
 inputs = []
