@@ -27,17 +27,22 @@ SAVED_MODEL_W: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'camera_del
 # --- Gets dataset with x1, x2 and result as `y` -----------------------------
 # ----------------------------------------------------------------------------
 
+def column(matrix, i):
+    return np.array([row[i] for row in matrix])
+
+
 def get_dataset():
     file_path = os.path.join(CURRENT_DIR, '..', '..', 'train-data', 'camera_deltas', 'data_000.npz')
-    file_data = np.load(file_path)
+    file_data = np.load(file_path, allow_pickle=True)
 
-    result = {
-        'x1': file_data['x1'] / 255.,
-        'x2': file_data['x2'] / 255.,
-        'y': file_data['y'],
-    }
-
-    return result
+    return (
+        column(file_data['train'], 0) / 255.,
+        column(file_data['train'], 1) / 255.,
+        column(file_data['train'], 2),
+        column(file_data['valid'], 0) / 255.,
+        column(file_data['valid'], 1) / 255.,
+        column(file_data['valid'], 2),
+    )
 
 
 # tensorboard --logdir=./logs --host=127.0.0.1
@@ -142,25 +147,12 @@ if os.path.isfile(SAVED_MODEL_W):
 # --- Train and print accuracy -----------------------------------------------
 # ----------------------------------------------------------------------------
 
-log_path = './logs'
-callback = TensorBoard(log_path)
+callback = TensorBoard('./logs')
 callback.set_model(model)
 train_names = ['train_loss', 'train_loss_in_cm', 'train_loss_in_radian']
 val_names = ['val_loss', 'val_loss_in_cm', 'val_loss_in_radian']
 
-file_data = get_dataset()
-
-train_and_valid_edge = 4000
-
-# train
-train_x1 = file_data['x1'][:train_and_valid_edge]
-train_x2 = file_data['x2'][:train_and_valid_edge]
-train_y = file_data['y'][:train_and_valid_edge]
-
-# test
-test_x1 = file_data['x1'][train_and_valid_edge:]
-test_x2 = file_data['x2'][train_and_valid_edge:]
-test_y = file_data['y'][train_and_valid_edge:]
+(train_x1, train_x2, train_y, test_x1, test_x2, test_y) = get_dataset()
 
 # predict
 idx_p = [0]
