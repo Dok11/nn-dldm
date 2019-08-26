@@ -1,4 +1,5 @@
 /.idea
 /data/camera_deltas/simple_images/*
-/train-data/camera_deltas/*.npz
 *.blend1
+*.npz
+*.zip
