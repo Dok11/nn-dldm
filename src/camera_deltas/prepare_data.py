@@ -10,17 +10,26 @@ SIZE_Y = 60
 CURRENT_DIR: str = os.getcwd()
 DATA_SLICE: int = 1
 MAX_COUNT: int = 1000000  # per slice
-DATA_SOURCES = [{
-    'images_dir': os.path.join(CURRENT_DIR, '..', '..', 'data', 'camera_deltas', 'simple_images', 'r'),
-    'delta_path': os.path.join(CURRENT_DIR, '..', '..', 'data', 'camera_deltas', 'simple', 'data.json'),
-    'images_data': [],
-    'delta_data': [],
-}, {
-    'images_dir': os.path.join(CURRENT_DIR, '..', '..', 'data', 'camera_deltas', 'classroom_images', 'r'),
-    'delta_path': os.path.join(CURRENT_DIR, '..', '..', 'data', 'camera_deltas', 'classroom', 'data.json'),
-    'images_data': [],
-    'delta_data': [],
-}]
+
+DATASET = {
+    'simple': {
+        'images_dir': os.path.join(CURRENT_DIR, '..', '..', 'data', 'camera_deltas', 'simple_images', 'r'),
+        'delta_path': os.path.join(CURRENT_DIR, '..', '..', 'data', 'camera_deltas', 'simple', 'data.json'),
+        'images_data': [],
+        'delta_data': [],
+    },
+    'classroom': {
+        'images_dir': os.path.join(CURRENT_DIR, '..', '..', 'data', 'camera_deltas', 'classroom_images', 'r'),
+        'delta_path': os.path.join(CURRENT_DIR, '..', '..', 'data', 'camera_deltas', 'classroom', 'data.json'),
+        'images_data': [],
+        'delta_data': [],
+    },
+}
+
+DATA_SOURCES = [
+    # DATASET['simple'],
+    DATASET['classroom'],
+]
 VALIDATION_PART = 0.2
 
 
@@ -132,7 +141,7 @@ class DataCollector:
         if not (os.path.isdir(train_dir)):
             os.mkdir(train_dir)
 
-        file = os.path.join(train_dir, 'data_' + slice_str)
+        file = os.path.join(train_dir, 'data_' + str(SIZE_X) + 'x' + str(SIZE_Y) + '_' + slice_str)
         np.savez(file, train=data_train, valid=data_valid)
 
 

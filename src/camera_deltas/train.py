@@ -32,7 +32,8 @@ def column(matrix, i):
 
 
 def get_dataset():
-    file_path = os.path.join(CURRENT_DIR, '..', '..', 'train-data', 'camera_deltas', 'data_000.npz')
+    file_name = 'data_' + str(SIZE_X) + 'x' + str(SIZE_Y) + '_000.npz'
+    file_path = os.path.join(CURRENT_DIR, '..', '..', 'train-data', 'camera_deltas', file_name)
     file_data = np.load(file_path, allow_pickle=True)
 
     return (
