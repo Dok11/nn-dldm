@@ -129,10 +129,10 @@ class DataCollector:
             data = self.get_data_for_source(sources)
 
             for data_index in range(len(data)):
-                if data_index < len(data) * (1 - VALIDATION_PART):
-                    data_train.append(data[data_index])
-                else:
+                if data_index % (1 / VALIDATION_PART):
                     data_valid.append(data[data_index])
+                else:
+                    data_train.append(data[data_index])
 
         # todo: write working with slices
         slice_str = str(0).zfill(3)
