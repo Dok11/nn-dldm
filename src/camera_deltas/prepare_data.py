@@ -129,7 +129,7 @@ class DataCollector:
             data = self.get_data_for_source(sources)
 
             for data_index in range(len(data)):
-                if data_index % (1 / VALIDATION_PART):
+                if data_index % (1 / VALIDATION_PART) == 0:
                     data_valid.append(data[data_index])
                 else:
                     data_train.append(data[data_index])
