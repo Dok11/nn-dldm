@@ -103,21 +103,21 @@ for input_idx in range(INPUT_NUMS):
     inputs.append(model_input)
 
     # 90x60 -> 23x15
-    model = Conv2D(64, (11, 11), strides=4, input_shape=IMG_SHAPE, padding='valid')(model_input)
+    model = Conv2D(128, (7, 7), strides=3, input_shape=IMG_SHAPE, padding='valid')(model_input)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     model = MaxPooling2D(pool_size=(2, 2))(model)
     model = Dropout(0.35)(model)
 
     # 23x15 -> 11x7
-    model = Conv2D(128, (5, 5), padding='same')(model)
+    model = Conv2D(256, (5, 5), strides=2, padding='same')(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     model = MaxPooling2D(pool_size=(2, 2))(model)
     model = Dropout(0.35)(model)
 
     # 11x7 -> 5x3
-    model = Conv2D(256, (3, 3), padding='same')(model)
+    model = Conv2D(512, (3, 3), padding='same')(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     model = MaxPooling2D(pool_size=(2, 2))(model)
@@ -128,12 +128,13 @@ for input_idx in range(INPUT_NUMS):
 merged_layers = concatenate(input_models)
 
 merged_layers = Flatten()(merged_layers)
+merged_layers = Dense(1024, activation='relu')(merged_layers)
 merged_layers = Dense(2048, activation='relu')(merged_layers)
-merged_layers = Dropout(0.4)(merged_layers)
+merged_layers = Dropout(0.35)(merged_layers)
 
 output = Dense(7, kernel_initializer='normal', activation='linear')(merged_layers)
 model = Model(inputs=inputs, outputs=output)
-model.compile(optimizer=Adam(0.00005, decay=0.00001),
+model.compile(optimizer=Adam(0.0001, decay=0.00001),
               loss=custom_objective,
               metrics=[loss_in_cm, loss_in_radian])
 
