@@ -1,7 +1,6 @@
 import os
 
 import shutil
-import keras
 import tensorflow as tf
 import numpy as np
 from keras import Input, Model
@@ -73,26 +72,26 @@ def loss_in_cm(y_true, y_pred):
     y_true *= 100
     y_pred *= 100
 
-    return keras.backend.sqrt(keras.backend.pow(y_pred[0] - y_true[0], 2) +
-                              keras.backend.pow(y_pred[1] - y_true[1], 2) +
-                              keras.backend.pow(y_pred[2] - y_true[2], 2))
+    return tf.math.sqrt(tf.math.pow(y_pred[0] - y_true[0], 2) +
+                        tf.math.pow(y_pred[1] - y_true[1], 2) +
+                        tf.math.pow(y_pred[2] - y_true[2], 2))
 
 
 # Currently just summarize all errors
 def loss_in_radian(y_true, y_pred):
-    error = keras.backend.square(y_pred - y_true)
+    error = tf.math.square(y_pred - y_true)
     return error[3] + error[4] + error[5] + error[6]
 
 
 def custom_objective(y_true, y_pred):
     radian_to_meter_valuable = 5
 
-    error = keras.backend.square(y_pred - y_true)
+    error = tf.math.square(y_pred - y_true)
 
-    trans_mag = keras.backend.sqrt(error[0] + error[1] + error[2])  # x+y+z errors
-    orient_mag = keras.backend.sqrt(error[3] + error[4] + error[5] + error[6])  # w+x+y+z errors
+    trans_mag = tf.math.sqrt(error[0] + error[1] + error[2])  # x+y+z errors
+    orient_mag = tf.math.sqrt(error[3] + error[4] + error[5] + error[6])  # w+x+y+z errors
 
-    return keras.backend.mean(trans_mag + (radian_to_meter_valuable * orient_mag))
+    return tf.keras.backend.mean(trans_mag + (radian_to_meter_valuable * orient_mag))
 
 
 inputs = []
