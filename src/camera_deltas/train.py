@@ -154,6 +154,7 @@ train_names = ['train_loss', 'train_loss_in_cm', 'train_loss_in_radian']
 val_names = ['val_loss', 'val_loss_in_cm', 'val_loss_in_radian']
 
 (train_x1, train_x2, train_y, test_x1, test_x2, test_y) = get_dataset()
+train_batch_size = 512
 
 # predict
 idx_p = [0]
@@ -163,21 +164,16 @@ train_y_p = test_y[idx_p]
 
 # train
 for batch in range(9000000):
-    idx = np.random.randint(0, len(train_x1), 64)
+    idx = np.random.randint(0, len(train_x1), train_batch_size)
     images_x1 = train_x1[idx]
     images_x2 = train_x2[idx]
     images_y = train_y[idx]
 
-    idx = np.random.randint(0, len(test_x1), 64)
-    test_images_x1 = test_x1[idx]
-    test_images_x2 = test_x2[idx]
-    test_images_y = test_y[idx]
-
     logs = model.train_on_batch(x=[images_x1, images_x2], y=images_y)
 
-    if batch % 500 == 0 and batch > 0:
+    if batch % 200 == 0 and batch > 0:
         # check model on the validation data
-        valid_idx = np.random.randint(0, len(test_x1), 64)
+        valid_idx = np.random.randint(0, len(test_x1), train_batch_size)
         v_loss = model.test_on_batch(x=[test_x1[valid_idx], test_x2[valid_idx]], y=test_y[valid_idx])
 
         print('%d [loss: %f, t.loss.sm.: %.2f, v.loss.sm.: %.2f]' % (batch, logs[0], logs[1], v_loss[1]))
