@@ -134,7 +134,7 @@ merged_layers = concatenate(input_models)
 
 merged_layers = Flatten()(merged_layers)
 merged_layers = Dense(1024, activation='relu')(merged_layers)
-merged_layers = Dense(1024, activation='relu')(merged_layers)
+merged_layers = Dense(2048, activation='relu')(merged_layers)
 merged_layers = Dropout(0.35)(merged_layers)
 
 output = Dense(7, kernel_initializer='normal', activation='linear')(merged_layers)
