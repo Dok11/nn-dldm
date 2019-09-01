@@ -101,24 +101,30 @@ for input_idx in range(INPUT_NUMS):
     model_input = Input(shape=IMG_SHAPE)
     inputs.append(model_input)
 
-    # 90x60 -> 23x15
+    # 90x60 -> 28x18
     model = Conv2D(128, (7, 7), strides=3, input_shape=IMG_SHAPE, padding='valid')(model_input)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
+
+    # 28x18 -> 14x9
     model = MaxPooling2D(pool_size=(2, 2))(model)
     model = Dropout(0.35)(model)
 
-    # 23x15 -> 11x7
+    # 14x9 -> 7x5
     model = Conv2D(256, (5, 5), strides=2, padding='same')(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
+
+    # 7x5 -> 3x2
     model = MaxPooling2D(pool_size=(2, 2))(model)
     model = Dropout(0.35)(model)
 
-    # 11x7 -> 5x3
+    # 3x2 -> 3x2
     model = Conv2D(512, (3, 3), padding='same')(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
+
+    # 3x2 -> 1x1
     model = MaxPooling2D(pool_size=(2, 2))(model)
     model = Dropout(0.35)(model)
 
@@ -128,7 +134,7 @@ merged_layers = concatenate(input_models)
 
 merged_layers = Flatten()(merged_layers)
 merged_layers = Dense(1024, activation='relu')(merged_layers)
-merged_layers = Dense(2048, activation='relu')(merged_layers)
+merged_layers = Dense(1024, activation='relu')(merged_layers)
 merged_layers = Dropout(0.35)(merged_layers)
 
 output = Dense(7, kernel_initializer='normal', activation='linear')(merged_layers)
