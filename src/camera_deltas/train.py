@@ -1,13 +1,12 @@
 import os
-
 import shutil
-import tensorflow as tf
+
 import numpy as np
-from keras import Input, Model
-from keras.callbacks import TensorBoard
-from keras.layers import Conv2D, Dropout, BatchNormalization, Flatten, Dense, concatenate, Activation, \
-    MaxPooling2D
-from keras.optimizers import Adam
+import tensorflow as tf
+from tensorflow.python.keras import Input, Model
+from tensorflow.python.keras.callbacks_v1 import TensorBoard
+from tensorflow.python.keras.layers import Conv2D, BatchNormalization, Activation, MaxPooling2D, Dropout, concatenate, \
+    Flatten, Dense
 
 # ============================================================================
 # --- GLOBAL PARAMS ----------------------------------------------------------
@@ -139,7 +138,7 @@ merged_layers = Dropout(0.35)(merged_layers)
 
 output = Dense(7, kernel_initializer='normal', activation='linear')(merged_layers)
 model = Model(inputs=inputs, outputs=output)
-model.compile(optimizer=Adam(0.0001, decay=0.00001),
+model.compile(optimizer=tf.keras.optimizers.Adam(0.00005, decay=0.00001),
               loss=custom_objective,
               metrics=[loss_in_cm, loss_in_radian])
 
