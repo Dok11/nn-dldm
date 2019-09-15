@@ -14,7 +14,6 @@ from tensorflow.python.keras.layers import Conv2D, BatchNormalization, Activatio
 
 SIZE_X = 90
 SIZE_Y = 60
-INPUT_NUMS = 2
 IMG_SHAPE = (SIZE_Y, SIZE_X, 1)
 CURRENT_DIR: str = os.getcwd()
 SAVED_MODEL: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'camera_deltas', 'model.h5')
@@ -96,43 +95,44 @@ def custom_objective(y_true, y_pred):
     return tf.keras.backend.mean(trans_mag + (radian_to_meter_valuable * orient_mag))
 
 
-inputs = []
-input_models = []
+shared_input = Input(IMG_SHAPE)
 
-for input_idx in range(INPUT_NUMS):
-    model_input = Input(shape=IMG_SHAPE)
-    inputs.append(model_input)
+# 90x60 -> 28x18
+shared_layer = Conv2D(128, (7, 7), strides=3, input_shape=IMG_SHAPE, padding='valid')(shared_input)
+shared_layer = BatchNormalization()(shared_layer)
+shared_layer = Activation('relu')(shared_layer)
 
-    # 90x60 -> 28x18
-    model = Conv2D(128, (7, 7), strides=3, input_shape=IMG_SHAPE, padding='valid')(model_input)
-    model = BatchNormalization()(model)
-    model = Activation('relu')(model)
+# 28x18 -> 14x9
+shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
+shared_layer = Dropout(0.35)(shared_layer)
 
-    # 28x18 -> 14x9
-    model = MaxPooling2D(pool_size=(2, 2))(model)
-    model = Dropout(0.35)(model)
+# 14x9 -> 7x5
+shared_layer = Conv2D(256, (5, 5), strides=2, padding='same')(shared_layer)
+shared_layer = BatchNormalization()(shared_layer)
+shared_layer = Activation('relu')(shared_layer)
 
-    # 14x9 -> 7x5
-    model = Conv2D(256, (5, 5), strides=2, padding='same')(model)
-    model = BatchNormalization()(model)
-    model = Activation('relu')(model)
+# 7x5 -> 3x2
+shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
+shared_layer = Dropout(0.35)(shared_layer)
 
-    # 7x5 -> 3x2
-    model = MaxPooling2D(pool_size=(2, 2))(model)
-    model = Dropout(0.35)(model)
+# 3x2 -> 3x2
+shared_layer = Conv2D(512, (3, 3), padding='same')(shared_layer)
+shared_layer = BatchNormalization()(shared_layer)
+shared_layer = Activation('relu')(shared_layer)
 
-    # 3x2 -> 3x2
-    model = Conv2D(512, (3, 3), padding='same')(model)
-    model = BatchNormalization()(model)
-    model = Activation('relu')(model)
+# 3x2 -> 1x1
+shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
+shared_layer = Dropout(0.35)(shared_layer)
 
-    # 3x2 -> 1x1
-    model = MaxPooling2D(pool_size=(2, 2))(model)
-    model = Dropout(0.35)(model)
+shared_model = Model(shared_input, shared_layer, name='shared_model')
 
-    input_models.append(model)
+image_a = Input(IMG_SHAPE)
+image_b = Input(IMG_SHAPE)
 
-merged_layers = concatenate(input_models)
+branch_a = shared_model(image_a)
+branch_b = shared_model(image_b)
+
+merged_layers = concatenate([branch_a, branch_b], axis=-1)
 
 merged_layers = Flatten()(merged_layers)
 merged_layers = Dense(1024, activation='relu')(merged_layers)
@@ -140,7 +140,7 @@ merged_layers = Dense(2048, activation='relu')(merged_layers)
 merged_layers = Dropout(0.35)(merged_layers)
 
 output = Dense(7, kernel_initializer='normal', activation='linear')(merged_layers)
-model = Model(inputs=inputs, outputs=output)
+model = Model(inputs=[image_a, image_b], outputs=output)
 model.compile(optimizer=tf.keras.optimizers.Adam(0.00005, decay=0.00001),
               loss=custom_objective,
               metrics=[loss_in_cm, loss_in_radian])
