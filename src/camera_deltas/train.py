@@ -95,36 +95,41 @@ def custom_objective(y_true, y_pred):
     return tf.keras.backend.mean(trans_mag + (radian_to_meter_valuable * orient_mag))
 
 
-shared_input = Input(IMG_SHAPE)
+def get_image_branch():
+    shared_input = Input(IMG_SHAPE)
 
-# 90x60 -> 28x18
-shared_layer = Conv2D(128, (7, 7), strides=3, input_shape=IMG_SHAPE, padding='valid')(shared_input)
-shared_layer = BatchNormalization()(shared_layer)
-shared_layer = Activation('relu')(shared_layer)
+    # 90x60 -> 28x18
+    shared_layer = Conv2D(128, (7, 7), strides=3, input_shape=IMG_SHAPE, padding='valid')(shared_input)
+    shared_layer = BatchNormalization()(shared_layer)
+    shared_layer = Activation('relu')(shared_layer)
 
-# 28x18 -> 14x9
-shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-shared_layer = Dropout(0.35)(shared_layer)
+    # 28x18 -> 14x9
+    shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
+    shared_layer = Dropout(0.35)(shared_layer)
 
-# 14x9 -> 7x5
-shared_layer = Conv2D(256, (5, 5), strides=2, padding='same')(shared_layer)
-shared_layer = BatchNormalization()(shared_layer)
-shared_layer = Activation('relu')(shared_layer)
+    # 14x9 -> 7x5
+    shared_layer = Conv2D(256, (5, 5), strides=2, padding='same')(shared_layer)
+    shared_layer = BatchNormalization()(shared_layer)
+    shared_layer = Activation('relu')(shared_layer)
 
-# 7x5 -> 3x2
-shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-shared_layer = Dropout(0.35)(shared_layer)
+    # 7x5 -> 3x2
+    shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
+    shared_layer = Dropout(0.35)(shared_layer)
 
-# 3x2 -> 3x2
-shared_layer = Conv2D(512, (3, 3), padding='same')(shared_layer)
-shared_layer = BatchNormalization()(shared_layer)
-shared_layer = Activation('relu')(shared_layer)
+    # 3x2 -> 3x2
+    shared_layer = Conv2D(512, (3, 3), padding='same')(shared_layer)
+    shared_layer = BatchNormalization()(shared_layer)
+    shared_layer = Activation('relu')(shared_layer)
 
-# 3x2 -> 1x1
-shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-shared_layer = Dropout(0.35)(shared_layer)
+    # 3x2 -> 1x1
+    shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
+    shared_layer = Dropout(0.35)(shared_layer)
 
-shared_model = Model(shared_input, shared_layer, name='shared_model')
+    return Model(shared_input, shared_layer, name='shared_model')
+
+
+shared_model = get_image_branch()
+shared_model.summary()
 
 image_a = Input(IMG_SHAPE)
 image_b = Input(IMG_SHAPE)
