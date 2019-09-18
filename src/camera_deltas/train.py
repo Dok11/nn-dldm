@@ -89,8 +89,17 @@ def custom_objective(y_true, y_pred):
 
     error = tf.math.square(y_pred - y_true)
 
-    trans_mag = tf.math.sqrt(error[0] + error[1] + error[2])  # x+y+z errors
-    orient_mag = tf.math.sqrt(error[3] + error[4] + error[5] + error[6])  # w+x+y+z errors
+    # x+y+z errors + xy + xz + yx + yz + zx + zy
+    trans_mag = tf.math.sqrt(
+        (error[0] + error[1] + error[2])
+        + (error[3] + error[4] + error[5] + error[6] + error[7] + error[8])
+    )
+
+    # quaternion w+x+y+z errors + euler rotation xyz
+    orient_mag = tf.math.sqrt(
+        (error[9] + error[10] + error[11] + error[12])
+        + (error[13] + error[14] + error[15])
+    )
 
     return tf.keras.backend.mean(trans_mag + (radian_to_meter_valuable * orient_mag))
 
@@ -144,7 +153,7 @@ merged_layers = Dense(1024, activation='relu')(merged_layers)
 merged_layers = Dense(2048, activation='relu')(merged_layers)
 merged_layers = Dropout(0.35)(merged_layers)
 
-output = Dense(7, kernel_initializer='normal', activation='linear')(merged_layers)
+output = Dense(16, kernel_initializer='normal', activation='linear')(merged_layers)
 model = Model(inputs=[image_a, image_b], outputs=output)
 model.compile(optimizer=tf.keras.optimizers.Adam(0.00005, decay=0.00001),
               loss=custom_objective,

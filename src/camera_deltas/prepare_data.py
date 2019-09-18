@@ -88,8 +88,6 @@ class DataCollector:
 
             if image_target and image_previous:
                 image_pairs.append((
-                    # image_target['path'],
-                    # image_previous['path'],
                     self.get_image_as_np_array(image_target['path']),
                     self.get_image_as_np_array(image_previous['path']),
                     image_target['path'],
@@ -112,10 +110,19 @@ class DataCollector:
                         delta_item['loc']['x'],
                         delta_item['loc']['y'],
                         delta_item['loc']['z'],
-                        delta_item['rot']['w'],
-                        delta_item['rot']['x'],
-                        delta_item['rot']['y'],
-                        delta_item['rot']['z'],
+                        delta_item['loc']['xy'],
+                        delta_item['loc']['xz'],
+                        delta_item['loc']['yx'],
+                        delta_item['loc']['yz'],
+                        delta_item['loc']['zx'],
+                        delta_item['loc']['zy'],
+                        delta_item['rot_q']['w'],
+                        delta_item['rot_q']['x'],
+                        delta_item['rot_q']['y'],
+                        delta_item['rot_q']['z'],
+                        delta_item['rot_e']['x'],
+                        delta_item['rot_e']['y'],
+                        delta_item['rot_e']['z'],
                     )
                 ))
 
