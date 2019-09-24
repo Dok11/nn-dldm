@@ -1,4 +1,7 @@
 /.idea
+/data/camera_deltas/archviz_images/*
+/data/camera_deltas/barbershop_images/*
+/data/camera_deltas/classroom_images/*
 /data/camera_deltas/simple_images/*
 *.blend1
 *.npz
