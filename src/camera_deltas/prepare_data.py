@@ -49,7 +49,8 @@ def get_image_as_np_array(path):
 class DataCollector:
     def __init__(self, data_sources):
         self.data_sources = data_sources
-        self.images_np_arr = {}
+        self.images_dict = []
+        self.images_np_arr = []
 
         # Load data from json file which generated from Blender file
         self.load_json_data()
@@ -69,7 +70,10 @@ class DataCollector:
         for sources in self.data_sources:
             for file_data in sources['files_data']:
                 image_path = os.path.join(sources['images_dir'], file_data['image_name'])
-                self.images_np_arr[image_path] = get_image_as_np_array(image_path)
+                image_np_arr = get_image_as_np_array(image_path)
+
+                self.images_dict.append(image_path)
+                self.images_np_arr.append(image_np_arr)
 
     def get_data_for_source(self, source):
         data = []  # [source image, destination, fov, result][]
@@ -77,6 +81,7 @@ class DataCollector:
         for file_data_index in range(len(source['files_data'])):
             source_image = source['files_data'][file_data_index]
             source_image_path = os.path.join(source['images_dir'], source_image['image_name'])
+            source_image_index = self.images_dict.index(source_image_path)
 
             files_to_data = []
 
@@ -100,12 +105,13 @@ class DataCollector:
             # Make delta data between source image and every destination
             for image_data in files_to_data:
                 destination_image_path = os.path.join(source['images_dir'], image_data['image_name'])
+                destination_image_index = self.images_dict.index(destination_image_path)
 
                 rotation_delta = (
-                    source_image['rot_q']['w'] - image_data['rot_q']['w'],
-                    source_image['rot_q']['x'] - image_data['rot_q']['x'],
-                    source_image['rot_q']['y'] - image_data['rot_q']['y'],
-                    source_image['rot_q']['z'] - image_data['rot_q']['z'],
+                    # source_image['rot_q']['w'] - image_data['rot_q']['w'],
+                    # source_image['rot_q']['x'] - image_data['rot_q']['x'],
+                    # source_image['rot_q']['y'] - image_data['rot_q']['y'],
+                    # source_image['rot_q']['z'] - image_data['rot_q']['z'],
 
                     source_image['rot_e']['x'] - image_data['rot_e']['x'],
                     source_image['rot_e']['y'] - image_data['rot_e']['y'],
@@ -117,8 +123,8 @@ class DataCollector:
                 # Save delta data if rotation delta not too large
                 if max_rotation_delta < ANGLE_LIMIT:
                     data.append((
-                        source_image_path,  # source image path
-                        destination_image_path,  # and previous frame
+                        source_image_index,  # source image index of self.images_np_arr
+                        destination_image_index,  # and destination image index
                         source_image['fov'],
                         (  # full result
                             source_image['loc']['x'] - image_data['loc']['x'],

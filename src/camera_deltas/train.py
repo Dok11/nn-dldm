@@ -37,12 +37,15 @@ def get_dataset():
     file_data = np.load(file_path, allow_pickle=True)
 
     return (
-        column(file_data['train'], 0) / 255.,
-        column(file_data['train'], 1) / 255.,
-        column(file_data['train'], 2),
-        column(file_data['valid'], 0) / 255.,
-        column(file_data['valid'], 1) / 255.,
-        column(file_data['valid'], 2),
+        column(file_data['train'], 0),  # source image path
+        column(file_data['train'], 1),  # destination
+        column(file_data['train'], 2),  # fov
+        column(file_data['train'], 3),  # result
+        column(file_data['valid'], 0),  # source image path
+        column(file_data['valid'], 1),  # destination
+        column(file_data['valid'], 2),  # fov
+        column(file_data['valid'], 3),  # result
+        file_data['images'] / 255.,
     )
 
 
@@ -89,17 +92,12 @@ def custom_objective(y_true, y_pred):
 
     error = tf.math.square(y_pred - y_true)
 
-    # x+y+z errors + xy + xz + yx + yz + zx + zy
-    trans_mag = tf.math.sqrt(
-        (error[0] + error[1] + error[2])
-        + (error[3] + error[4] + error[5] + error[6] + error[7] + error[8])
-    )
+    # x+y+z errors
+    trans_mag = tf.math.sqrt(error[0] + error[1] + error[2])
+    # max_trans_err = max(error[0], error[1], error[2])
 
-    # quaternion w+x+y+z errors + euler rotation xyz
-    orient_mag = tf.math.sqrt(
-        (error[9] + error[10] + error[11] + error[12])
-        + (error[13] + error[14] + error[15])
-    )
+    # euler rotation xyz
+    orient_mag = tf.math.sqrt(error[3] + error[4] + error[5])
 
     return tf.keras.backend.mean(trans_mag + (radian_to_meter_valuable * orient_mag))
 
@@ -150,10 +148,10 @@ merged_layers = concatenate([branch_a, branch_b], axis=-1)
 
 merged_layers = Flatten()(merged_layers)
 merged_layers = Dense(1024, activation='relu')(merged_layers)
-merged_layers = Dense(2048, activation='relu')(merged_layers)
+merged_layers = Dense(1024, activation='relu')(merged_layers)
 merged_layers = Dropout(0.35)(merged_layers)
 
-output = Dense(16, kernel_initializer='normal', activation='linear')(merged_layers)
+output = Dense(6, kernel_initializer='normal', activation='linear')(merged_layers)
 model = Model(inputs=[image_a, image_b], outputs=output)
 model.compile(optimizer=tf.keras.optimizers.Adam(0.00005, decay=0.00001),
               loss=custom_objective,
@@ -175,30 +173,35 @@ callback.set_model(model)
 train_names = ['train_loss', 'train_loss_in_cm', 'train_loss_in_radian']
 val_names = ['val_loss', 'val_loss_in_cm', 'val_loss_in_radian']
 
-(train_x1, train_x2, train_y, test_x1, test_x2, test_y) = get_dataset()
-train_batch_size = 512
+(train_x1, train_x2, train_fov, train_y,
+ test_x1, test_x2, test_fov, test_y,
+ images) = get_dataset()
+train_batch_size = 64
 
-# predict
-idx_p = [0]
-images_x1_p = test_x1[idx_p]
-images_x2_p = test_x2[idx_p]
-train_y_p = test_y[idx_p]
 
 # train
 for batch in range(9000000):
     idx = np.random.randint(0, len(train_x1), train_batch_size)
-    images_x1 = train_x1[idx]
-    images_x2 = train_x2[idx]
-    images_y = train_y[idx]
+    images_idx_x1 = train_x1[idx]
+    images_idx_x2 = train_x2[idx]
+    images_x1 = images[images_idx_x1]
+    images_x2 = images[images_idx_x2]
+    result = train_y[idx]
 
-    logs = model.train_on_batch(x=[images_x1, images_x2], y=images_y)
+    logs = model.train_on_batch(x=[images_x1, images_x2], y=result)
 
     if batch % 200 == 0 and batch > 0:
         # check model on the validation data
         valid_idx = np.random.randint(0, len(test_x1), train_batch_size)
-        v_loss = model.test_on_batch(x=[test_x1[valid_idx], test_x2[valid_idx]], y=test_y[valid_idx])
+        valid_images_idx_x1 = test_x1[valid_idx]
+        valid_images_idx_x2 = test_x2[valid_idx]
+        valid_images_x1 = images[valid_images_idx_x1]
+        valid_images_x2 = images[valid_images_idx_x2]
+        valid_result = test_y[valid_idx]
 
-        print('%d [loss: %f, t.loss.sm.: %.2f, v.loss.sm.: %.2f]' % (batch, logs[0], logs[1], v_loss[1]))
+        v_loss = model.test_on_batch(x=[valid_images_x1, valid_images_x2], y=valid_result)
+
+        print('%d [loss: %f]' % (batch, logs[0]))
         write_log(callback, train_names, logs, batch)
         write_log(callback, val_names, v_loss, batch)
 
