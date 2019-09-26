@@ -140,6 +140,7 @@ shared_model.summary()
 
 image_a = Input(IMG_SHAPE)
 image_b = Input(IMG_SHAPE)
+image_fov = Input((1,))
 
 branch_a = shared_model(image_a)
 branch_b = shared_model(image_b)
@@ -147,12 +148,12 @@ branch_b = shared_model(image_b)
 merged_layers = concatenate([branch_a, branch_b], axis=-1)
 
 merged_layers = Flatten()(merged_layers)
-merged_layers = Dense(1024, activation='relu')(merged_layers)
-merged_layers = Dense(1024, activation='relu')(merged_layers)
-merged_layers = Dropout(0.35)(merged_layers)
+merged_layers = concatenate([merged_layers, image_fov])
+merged_layers = Dense(1024, activation='selu')(merged_layers)
+merged_layers = Dense(1024, activation='selu')(merged_layers)
 
 output = Dense(6, kernel_initializer='normal', activation='linear')(merged_layers)
-model = Model(inputs=[image_a, image_b], outputs=output)
+model = Model(inputs=[image_a, image_b, image_fov], outputs=output)
 model.compile(optimizer=tf.keras.optimizers.Adam(0.00005, decay=0.00001),
               loss=custom_objective,
               metrics=[loss_in_cm, loss_in_radian])
@@ -186,9 +187,11 @@ for batch in range(9000000):
     images_idx_x2 = train_x2[idx]
     images_x1 = images[images_idx_x1]
     images_x2 = images[images_idx_x2]
+    images_fov = train_fov[idx]
     result = train_y[idx]
 
-    logs = model.train_on_batch(x=[images_x1, images_x2], y=result)
+    logs = model.train_on_batch(x=[images_x1, images_x2, images_fov], y=result)
+    sum_logs.append(logs)
 
     if batch % 200 == 0 and batch > 0:
         # check model on the validation data
@@ -197,12 +200,17 @@ for batch in range(9000000):
         valid_images_idx_x2 = test_x2[valid_idx]
         valid_images_x1 = images[valid_images_idx_x1]
         valid_images_x2 = images[valid_images_idx_x2]
+        valid_images_fov = train_fov[valid_idx]
         valid_result = test_y[valid_idx]
 
-        v_loss = model.test_on_batch(x=[valid_images_x1, valid_images_x2], y=valid_result)
+        v_loss = model.test_on_batch(x=[valid_images_x1, valid_images_x2, valid_images_fov], y=valid_result)
 
-        print('%d [loss: %f]' % (batch, logs[0]))
-        write_log(callback, train_names, logs, batch)
+        avg_logs = np.average(sum_logs, axis=0)
+        sum_logs = []
+
+        print('%d [loss: %f]' % (batch, avg_logs[0]))
+        write_log(callback, train_names, avg_logs, batch)
         write_log(callback, val_names, v_loss, batch)
 
+    if batch % 5000 == 0 and batch > 0:
         save_models(model)
