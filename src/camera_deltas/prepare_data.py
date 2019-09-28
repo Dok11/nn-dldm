@@ -7,8 +7,8 @@ from keras_preprocessing.image import load_img, img_to_array
 
 
 RAD_TO_DEGREE = 57.2958  # 180/pi
-SIZE_X = 90
-SIZE_Y = 60
+SIZE_X = 60
+SIZE_Y = 40
 CURRENT_DIR: str = os.getcwd()
 DATA_SLICE: int = 1
 MAX_COUNT: int = 1000000  # per slice
@@ -26,11 +26,23 @@ DATASET = {
         'delta_path': os.path.join(CURRENT_DIR, '..', '..', 'data', 'camera_deltas', 'classroom', 'data.json'),
         'files_data': [],
     },
+    'barbershop': {
+        'images_dir': os.path.join(CURRENT_DIR, '..', '..', 'data', 'camera_deltas', 'barbershop_images', 'r'),
+        'delta_path': os.path.join(CURRENT_DIR, '..', '..', 'data', 'camera_deltas', 'barbershop', 'data.json'),
+        'files_data': [],
+    },
+    'archviz': {
+        'images_dir': os.path.join(CURRENT_DIR, '..', '..', 'data', 'camera_deltas', 'archviz_images', 'r'),
+        'delta_path': os.path.join(CURRENT_DIR, '..', '..', 'data', 'camera_deltas', 'archviz', 'data.json'),
+        'files_data': [],
+    },
 }
 
 DATA_SOURCES = [
     DATASET['simple'],
-    # DATASET['classroom'],
+    DATASET['classroom'],
+    DATASET['barbershop'],
+    DATASET['archviz'],
 ]
 VALIDATION_PART = 0.2
 

@@ -12,8 +12,8 @@ from tensorflow.python.keras.layers import Conv2D, BatchNormalization, Activatio
 # --- GLOBAL PARAMS ----------------------------------------------------------
 # ----------------------------------------------------------------------------
 
-SIZE_X = 90
-SIZE_Y = 60
+SIZE_X = 60
+SIZE_Y = 40
 IMG_SHAPE = (SIZE_Y, SIZE_X, 1)
 CURRENT_DIR: str = os.getcwd()
 SAVED_MODEL: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'camera_deltas', 'model.h5')
@@ -106,31 +106,31 @@ def get_image_branch():
     shared_input = Input(IMG_SHAPE)
 
     # 90x60 -> 28x18
-    shared_layer = Conv2D(128, (7, 7), strides=3, input_shape=IMG_SHAPE, padding='valid')(shared_input)
+    shared_layer = Conv2D(128, (5, 5), strides=3, input_shape=IMG_SHAPE, padding='valid')(shared_input)
     shared_layer = BatchNormalization()(shared_layer)
-    shared_layer = Activation('relu')(shared_layer)
+    shared_layer = Activation('selu')(shared_layer)
 
     # 28x18 -> 14x9
     shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-    shared_layer = Dropout(0.35)(shared_layer)
+    # shared_layer = Dropout(0.35)(shared_layer)
 
     # 14x9 -> 7x5
-    shared_layer = Conv2D(256, (5, 5), strides=2, padding='same')(shared_layer)
+    shared_layer = Conv2D(256, (3, 3), padding='same')(shared_layer)
     shared_layer = BatchNormalization()(shared_layer)
-    shared_layer = Activation('relu')(shared_layer)
+    shared_layer = Activation('selu')(shared_layer)
 
     # 7x5 -> 3x2
     shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-    shared_layer = Dropout(0.35)(shared_layer)
+    #shared_layer = Dropout(0.35)(shared_layer)
 
     # 3x2 -> 3x2
     shared_layer = Conv2D(512, (3, 3), padding='same')(shared_layer)
     shared_layer = BatchNormalization()(shared_layer)
-    shared_layer = Activation('relu')(shared_layer)
+    shared_layer = Activation('selu')(shared_layer)
 
     # 3x2 -> 1x1
     shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-    shared_layer = Dropout(0.35)(shared_layer)
+    # shared_layer = Dropout(0.35)(shared_layer)
 
     return Model(shared_input, shared_layer, name='shared_model')
 
@@ -145,7 +145,7 @@ image_fov = Input((1,))
 branch_a = shared_model(image_a)
 branch_b = shared_model(image_b)
 
-merged_layers = concatenate([branch_a, branch_b], axis=-1)
+merged_layers = concatenate([branch_a, branch_b])
 
 merged_layers = Flatten()(merged_layers)
 merged_layers = concatenate([merged_layers, image_fov])
@@ -177,11 +177,12 @@ val_names = ['val_loss', 'val_loss_in_cm', 'val_loss_in_radian']
 (train_x1, train_x2, train_fov, train_y,
  test_x1, test_x2, test_fov, test_y,
  images) = get_dataset()
-train_batch_size = 64
+train_batch_size = 256
 
 
 # train
-for batch in range(9000000):
+sum_logs = []
+for batch in range(50000001):
     idx = np.random.randint(0, len(train_x1), train_batch_size)
     images_idx_x1 = train_x1[idx]
     images_idx_x2 = train_x2[idx]
