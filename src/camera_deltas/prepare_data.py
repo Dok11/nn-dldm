@@ -3,7 +3,7 @@ import os
 import random
 
 import numpy as np
-from keras_preprocessing.image import load_img, img_to_array
+from keras_preprocessing.image import load_img, img_to_array, save_img
 
 
 RAD_TO_DEGREE = 57.2958  # 180/pi
@@ -55,7 +55,9 @@ def get_image_as_np_array(path):
 
     image = img_to_array(image_loaded)
 
-    return np.array(image).astype('uint8')
+
+def get_clamped_number(value, max_range):
+    return max(0, min(value, max_range))
 
 
 class DataCollector:
@@ -120,14 +122,38 @@ class DataCollector:
                 destination_image_index = self.images_dict.index(destination_image_path)
 
                 rotation_delta = (
-                    # source_image['rot_q']['w'] - image_data['rot_q']['w'],
-                    # source_image['rot_q']['x'] - image_data['rot_q']['x'],
-                    # source_image['rot_q']['y'] - image_data['rot_q']['y'],
-                    # source_image['rot_q']['z'] - image_data['rot_q']['z'],
-
                     source_image['rot_e']['x'] - image_data['rot_e']['x'],
                     source_image['rot_e']['y'] - image_data['rot_e']['y'],
                     source_image['rot_e']['z'] - image_data['rot_e']['z'],
+                )
+
+                location_delta = (
+                    source_image['loc']['x'] - image_data['loc']['x'],
+                    source_image['loc']['y'] - image_data['loc']['y'],
+                    source_image['loc']['z'] - image_data['loc']['z'],
+                )
+
+                # For better prediction save location in format
+                # [x, y_x, z_x] [x_y, y, z_y] [x_z, y_z, z]
+                # Where [x, y, z] is absolute delta values in scene units
+                # Where [y_x, z_x, etc.] for example for `x` is relative coefficient to x
+                max_value = 1000000
+
+                location_complex_data = (
+                    # [x, y_x, z_x]
+                    location_delta[0],
+                    get_clamped_number(location_delta[1] / location_delta[0], max_value) / max_value,
+                    get_clamped_number(location_delta[2] / location_delta[0], max_value) / max_value,
+
+                    # [x_y, y, z_y]
+                    get_clamped_number(location_delta[0] / location_delta[1], max_value) / max_value,
+                    location_delta[1],
+                    get_clamped_number(location_delta[2] / location_delta[1], max_value) / max_value,
+
+                    # [x_z, y_z, z]
+                    get_clamped_number(location_delta[0] / location_delta[2], max_value) / max_value,
+                    get_clamped_number(location_delta[1] / location_delta[2], max_value) / max_value,
+                    location_delta[2],
                 )
 
                 max_rotation_delta = max(rotation_delta)
@@ -138,11 +164,7 @@ class DataCollector:
                         source_image_index,  # source image index of self.images_np_arr
                         destination_image_index,  # and destination image index
                         source_image['fov'],
-                        (  # full result
-                            source_image['loc']['x'] - image_data['loc']['x'],
-                            source_image['loc']['y'] - image_data['loc']['y'],
-                            source_image['loc']['z'] - image_data['loc']['z'],
-                        ) + rotation_delta,
+                        location_complex_data + rotation_delta,
                     ))
 
         return data
