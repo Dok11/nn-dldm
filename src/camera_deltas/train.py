@@ -12,15 +12,15 @@ from tensorflow.python.keras.layers import Conv2D, BatchNormalization, Activatio
 # --- GLOBAL PARAMS ----------------------------------------------------------
 # ----------------------------------------------------------------------------
 
-SIZE_X = 60
-SIZE_Y = 40
-IMG_SHAPE = (SIZE_Y, SIZE_X, 1)
+SIZE_X = 224
+SIZE_Y = 224
+IMG_SHAPE = (SIZE_Y, SIZE_X, 3)
 CURRENT_DIR: str = os.getcwd()
 SAVED_MODEL: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'camera_deltas', 'model.h5')
 SAVED_MODEL_W: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'camera_deltas', 'model_w.h5')
 
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.7)
-sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+# gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.7)
+# sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
 
 # ============================================================================
@@ -45,7 +45,7 @@ def get_dataset():
         column(file_data['valid'], 1),  # destination
         column(file_data['valid'], 2),  # fov
         column(file_data['valid'], 3),  # result
-        file_data['images'] / 255.,
+        file_data['images'],
     )
 
 
@@ -73,64 +73,94 @@ def save_models(model_for_save):
 # ----------------------------------------------------------------------------
 
 def loss_in_cm(y_true, y_pred):
-    y_true *= 100
-    y_pred *= 100
+    delta = y_pred - y_true
+    x = delta[0] * 100
+    y = delta[4] * 100
+    z = delta[8] * 100
 
-    return tf.math.sqrt(tf.math.pow(y_pred[0] - y_true[0], 2) +
-                        tf.math.pow(y_pred[1] - y_true[1], 2) +
-                        tf.math.pow(y_pred[2] - y_true[2], 2))
+    return tf.sqrt(tf.pow(x, 2) +
+                   tf.pow(y, 2) +
+                   tf.pow(z, 2))
+
+
+def loss_in_cm_x(y_true, y_pred):
+    delta = y_pred - y_true
+    return tf.sqrt(tf.pow(delta[0] * 100, 2))
+
+
+def loss_in_cm_y(y_true, y_pred):
+    delta = y_pred - y_true
+    return tf.sqrt(tf.pow(delta[4] * 100, 2))
+
+
+def loss_in_cm_z(y_true, y_pred):
+    delta = y_pred - y_true
+    return tf.sqrt(tf.pow(delta[8] * 100, 2))
 
 
 # Currently just summarize all errors
 def loss_in_radian(y_true, y_pred):
-    error = tf.math.square(y_pred - y_true)
-    return error[3] + error[4] + error[5] + error[6]
+    error = y_pred - y_true
+    return tf.math.abs(error[9] + error[10] + error[11])
 
 
 def custom_objective(y_true, y_pred):
     radian_to_meter_valuable = 5
 
     error = tf.math.square(y_pred - y_true)
+    # error = tf.Print(error, [error], 'error', summarize=1000)
 
     # x+y+z errors
-    trans_mag = tf.math.sqrt(error[0] + error[1] + error[2])
-    # max_trans_err = max(error[0], error[1], error[2])
+    # trans_error = tf.math.sqrt(error[0] + error[4] + error[8])
+    trans_error = tf.math.sqrt(error[0] + error[1]*0 + error[2]*0 + error[3]*0 + error[4] + error[5]*0 + error[6]*0 + error[7]*0 + error[8])
+    # trans_error = error[0] + error[1] + error[2] + error[3] + error[4] + error[5] + error[6] + error[7] + error[8]
+
+    print(trans_error)
 
     # euler rotation xyz
-    orient_mag = tf.math.sqrt(error[3] + error[4] + error[5])
+    orient_error = tf.math.sqrt(error[9] + error[10] + error[11])
 
-    return tf.keras.backend.mean(trans_mag + (radian_to_meter_valuable * orient_mag))
+    return tf.reduce_mean(trans_error + (radian_to_meter_valuable * orient_error), axis=-1)
 
 
 def get_image_branch():
     shared_input = Input(IMG_SHAPE)
 
-    # 90x60 -> 28x18
-    shared_layer = Conv2D(128, (5, 5), strides=3, input_shape=IMG_SHAPE, padding='valid')(shared_input)
+    # 224x224 -> 74x74
+    shared_layer = Conv2D(50, (5, 5), strides=3, input_shape=IMG_SHAPE, padding='valid')(shared_input)
     shared_layer = BatchNormalization()(shared_layer)
     shared_layer = Activation('selu')(shared_layer)
 
-    # 28x18 -> 14x9
+    # 74x74 -> 37x37
     shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-    # shared_layer = Dropout(0.35)(shared_layer)
+    shared_layer = Dropout(0.35)(shared_layer)
 
-    # 14x9 -> 7x5
-    shared_layer = Conv2D(256, (3, 3), padding='same')(shared_layer)
+    # 37x37 -> 37x37
+    shared_layer = Conv2D(100, (4, 4), padding='same')(shared_layer)
     shared_layer = BatchNormalization()(shared_layer)
     shared_layer = Activation('selu')(shared_layer)
 
-    # 7x5 -> 3x2
+    # 37x37 -> 18x18
     shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-    #shared_layer = Dropout(0.35)(shared_layer)
+    shared_layer = Dropout(0.35)(shared_layer)
 
-    # 3x2 -> 3x2
-    shared_layer = Conv2D(512, (3, 3), padding='same')(shared_layer)
+    # 18x18 -> 18x18
+    shared_layer = Conv2D(200, (3, 3), padding='same')(shared_layer)
     shared_layer = BatchNormalization()(shared_layer)
     shared_layer = Activation('selu')(shared_layer)
 
-    # 3x2 -> 1x1
+    # 18x18 -> 9x9
     shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-    # shared_layer = Dropout(0.35)(shared_layer)
+    shared_layer = Dropout(0.35)(shared_layer)
+
+    # 9x9 -> 9x9
+    shared_layer = Conv2D(400, (3, 3), padding='same')(shared_layer)
+    shared_layer = BatchNormalization()(shared_layer)
+    shared_layer = Activation('selu')(shared_layer)
+
+    # 9x9 -> 4x4
+    shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
+    shared_layer = Dropout(0.35)(shared_layer)
 
     return Model(shared_input, shared_layer, name='shared_model')
 
@@ -152,11 +182,11 @@ merged_layers = concatenate([merged_layers, image_fov])
 merged_layers = Dense(1024, activation='selu')(merged_layers)
 merged_layers = Dense(1024, activation='selu')(merged_layers)
 
-output = Dense(6, kernel_initializer='normal', activation='linear')(merged_layers)
+output = Dense(12, kernel_initializer='normal', activation='linear')(merged_layers)
 model = Model(inputs=[image_a, image_b, image_fov], outputs=output)
 model.compile(optimizer=tf.keras.optimizers.Adam(0.00005, decay=0.00001),
               loss=custom_objective,
-              metrics=[loss_in_cm, loss_in_radian])
+              metrics=[loss_in_cm, loss_in_radian, loss_in_cm_x, loss_in_cm_y, loss_in_cm_z])
 
 model.summary()
 
@@ -171,13 +201,13 @@ if os.path.isfile(SAVED_MODEL_W):
 
 callback = TensorBoard('./logs')
 callback.set_model(model)
-train_names = ['train_loss', 'train_loss_in_cm', 'train_loss_in_radian']
-val_names = ['val_loss', 'val_loss_in_cm', 'val_loss_in_radian']
+train_names = ['train_loss', 'train_loss_in_cm', 'train_loss_in_radian', 'train_loss_in_cm_x', 'train_loss_in_cm_y', 'train_loss_in_cm_z']
+val_names = ['val_loss', 'val_loss_in_cm', 'val_loss_in_radian', 'val_loss_in_cm_x', 'val_loss_in_cm_y', 'val_loss_in_cm_z']
 
 (train_x1, train_x2, train_fov, train_y,
  test_x1, test_x2, test_fov, test_y,
  images) = get_dataset()
-train_batch_size = 256
+train_batch_size = 64
 
 
 # train
@@ -186,8 +216,8 @@ for batch in range(50000001):
     idx = np.random.randint(0, len(train_x1), train_batch_size)
     images_idx_x1 = train_x1[idx]
     images_idx_x2 = train_x2[idx]
-    images_x1 = images[images_idx_x1]
-    images_x2 = images[images_idx_x2]
+    images_x1 = images[images_idx_x1] / 255.
+    images_x2 = images[images_idx_x2] / 255.
     images_fov = train_fov[idx]
     result = train_y[idx]
 
@@ -199,8 +229,8 @@ for batch in range(50000001):
         valid_idx = np.random.randint(0, len(test_x1), train_batch_size)
         valid_images_idx_x1 = test_x1[valid_idx]
         valid_images_idx_x2 = test_x2[valid_idx]
-        valid_images_x1 = images[valid_images_idx_x1]
-        valid_images_x2 = images[valid_images_idx_x2]
+        valid_images_x1 = images[valid_images_idx_x1] / 255.
+        valid_images_x2 = images[valid_images_idx_x2] / 255.
         valid_images_fov = train_fov[valid_idx]
         valid_result = test_y[valid_idx]
 

@@ -6,9 +6,10 @@ import numpy as np
 from keras_preprocessing.image import load_img, img_to_array, save_img
 
 
+IMG_ASPECT_RATIO = 1.5
 RAD_TO_DEGREE = 57.2958  # 180/pi
-SIZE_X = 60
-SIZE_Y = 40
+SIZE_X = 224
+SIZE_Y = 224
 CURRENT_DIR: str = os.getcwd()
 DATA_SLICE: int = 1
 MAX_COUNT: int = 1000000  # per slice
@@ -47,13 +48,26 @@ DATA_SOURCES = [
 VALIDATION_PART = 0.2
 
 
-def get_image_as_np_array(path):
-    image_loaded = load_img(path,
-                            color_mode='grayscale',
-                            target_size=(SIZE_Y, SIZE_X),
-                            interpolation='bicubic')
+def crop_center(img, crop_x, crop_y):
+    y, x, c = img.shape
+    start_x = x // 2 - crop_x // 2
+    start_y = y // 2 - crop_y // 2
 
-    image = img_to_array(image_loaded)
+    return img[start_y:start_y + crop_y, start_x:start_x + crop_x, :]
+
+
+def get_image_as_np_array(path):
+    resize_y = SIZE_Y
+    resize_x = int(round(SIZE_X * IMG_ASPECT_RATIO))
+
+    img_loaded = load_img(path,
+                          target_size=(resize_y, resize_x),
+                          interpolation='bicubic')
+
+    img = img_to_array(img_loaded)
+    img_cropped = crop_center(img, SIZE_X, SIZE_Y)
+
+    return np.array(img_cropped).astype('uint8')
 
 
 def get_clamped_number(value, max_range):
