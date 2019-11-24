@@ -17,11 +17,16 @@ Work in progress but currently my plan includes this parts to realisation:
 
 ## 1. Ordering images
 
-Main feature of this section is defining nearest images together for next step.  
-The idea is comparing each image with any other or calulcate features of images and ordering images by them. Last way in prioritet because looks like more efficient.  
-I think here we can use existed models what are use for CIFAR dataset and get flatten layer for estimate image fetures which we will compare in out network.
+Main purpose of this section is defining nearest images together for next step.  
 
-Currently status of this section — zero. Just idea.
+Scripts for trainig placed in the `/src/surface_match/`  
+Dataset placed in the `/data/surface_match/`  
+Prepared data in npz file placed in the `/train_data/surface_match/`  
+Saved model and their weights placed in the `/models/surface_match/`  
+
+Dataset generate in Blender. Main idea is creating pair of images from every camera position to every other wich defining how many surface matched between images. So dataset presents pairs of normal renders with b/w image where white color define matched surfaces wich will be converted to number 0-1, where 0 is has no matched surfaced and 1 is same images.
+
+Currently status of this section — creation dataset.
 
 ## 2. Reconstruct camera positions or calculate camera deltas
 
@@ -51,6 +56,11 @@ Currently uses synthetic images like this:
 3.8. Dirty camera (like finger print)
 4. Train network for fast result (like 120×90, bw)
 5. Train network for strong result (lik 450×300, rgb)
+
+### Current troubles
+
+1. Delta of cameras position currently define in global scene coordinates. So in one direction the x-axis at left from camera, and in reverse direction at right from camera.
+So in nearset target fix it.
 
 ## 3. Create depth map (bw image)
 
