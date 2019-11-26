@@ -3,6 +3,10 @@
 /data/camera_deltas/barbershop_images/*
 /data/camera_deltas/classroom_images/*
 /data/camera_deltas/simple_images/*
+/data/surface_match/archviz_images/*
+/data/surface_match/barbershop_images/*
+/data/surface_match/classroom_images/*
+/data/surface_match/simple_images/*
 *.blend1
 *.npz
 *.zip
