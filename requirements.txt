@@ -1,6 +1,5 @@
-tensorflow
-tensorflow-gpu
-numpy==1.13.3
-matplotlib
-pillow
-tensorboard
+tensorflow==1.14.0
+tensorflow-gpu==1.14.0
+numpy==1.17.3
+pillow==6.2.1
+tensorboard==1.14.0
