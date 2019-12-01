@@ -89,7 +89,7 @@ class ExternalRender:
 
     def setup_render_params(self, root_frame, frame):
         bpy.context.scene.frame_set(root_frame)
-        bpy.data.scenes['Scene'].frame_start = ((i - 1) % self.frame_step) + 1
+        bpy.data.scenes['Scene'].frame_start = ((frame - 1) % self.frame_step) + 1
 
         box = bpy.data.objects['LightSceneBoxCamera' + str(self.target_camera)]
         cam = bpy.data.objects['CameraScene' + str(self.target_camera)]
