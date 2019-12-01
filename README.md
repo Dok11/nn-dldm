@@ -5,6 +5,7 @@ Current neural network training performance
 
 ![progress](/docs/train-results.png)
 
+
 # Roadmap
 
 Work in progress but currently my plan includes this parts to realisation:
@@ -14,6 +15,7 @@ Work in progress but currently my plan includes this parts to realisation:
 3. Create depth map based on current image and two most nearset images (or large if I will rich)
 4. Convert are separately depth maps to common points cloud and filter them from trash points
 5. Create mesh from points cloud and texture them
+
 
 ## 1. Ordering images
 
@@ -25,8 +27,14 @@ Prepared data in npz file placed in the `/train_data/surface_match/`
 Saved model and their weights placed in the `/models/surface_match/`  
 
 Dataset generate in Blender. Main idea is creating pair of images from every camera position to every other wich defining how many surface matched between images. So dataset presents pairs of normal renders with b/w image where white color define matched surfaces wich will be converted to number 0-1, where 0 is has no matched surfaced and 1 is same images.
+![surface match dataset example](/docs/surface_match.png)
 
 Currently status of this section — creation dataset.
+
+
+### Useful links:
+- [Structure-from-motion using convolutional neural networks](http://jultika.oulu.fi/files/nbnfioulu-201809062760.pdf)
+
 
 ## 2. Reconstruct camera positions or calculate camera deltas
 
@@ -38,6 +46,7 @@ Prepared data in npz file placed in the `/train_data/camera_deltas/`
 Saved model and their weights placed in the `/models/camera_deltas/`  
 
 Currently status of this section — almost working demo with acceptable quality.
+
 
 ### Upcoming plans
 
@@ -57,12 +66,21 @@ Currently uses synthetic images like this:
 4. Train network for fast result (like 120×90, bw)
 5. Train network for strong result (lik 450×300, rgb)
 
+
 ### Current troubles
 
 1. Delta of cameras position currently define in global scene coordinates. So in one direction the x-axis at left from camera, and in reverse direction at right from camera.
 So in nearset target fix it.
 
-## 3. Create depth map (bw image)
+
+### Useful links:
+
+- [Relative Camera Pose Estimation Using Convolutional Neural Networks](https://arxiv.org/pdf/1702.01381.pdf)
+- [Understanding the Limitations of CNN-based Absolute Camera Pose Regression](https://arxiv.org/pdf/1903.07504v1.pdf)
+- [Geometric loss functions for camera pose regression with deep learning](https://arxiv.org/pdf/1704.00390.pdf)
+
+
+## 3. Create depth map (bw 16-bit image)
 
 In this section we will get target image and two most nearest, then calculate depth map which looks like this:
 ![depth map example](/docs/depth_map__example.png)
@@ -70,9 +88,11 @@ In this section we will get target image and two most nearest, then calculate de
 Currently status of this section — ready method for creation dataset of images in Blender 3D.
 ![method for creation dataset with depth maps](/docs/depth_map__method.png)
 
+
 ## 4. Convert are separately depth maps to common points cloud
 
 In this section we will scale depth map from relative it camera until it better matching from neighboring cameras.
+
 
 ## 5. Create mesh from points cloud and texture them
 
