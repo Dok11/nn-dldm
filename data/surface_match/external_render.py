@@ -1,5 +1,6 @@
 import os
 import re
+import hashlib
 
 import bpy
 
@@ -32,6 +33,11 @@ import bpy
 ######################################################################
 
 
+def get_hash_image(image):
+    string = 's' + str(image['scene']) + 'r' + str(image['root']) + 'f' + str(image['frame'])
+    return hashlib.md5(string.encode('utf-8')).hexdigest()
+
+
 class ExternalRender:
     def __init__(self,
                  project_name='archviz',
@@ -42,46 +48,21 @@ class ExternalRender:
                  frame_end=1,
                  frame_step=1,
                  ):
+        self.project_name = project_name
         self.target_camera = target_camera
         self.frame_step = frame_step
+        self.root_frame_start = root_frame_start
+        self.root_frame_end = root_frame_end
+        self.frame_start = frame_start
+        self.frame_end = frame_end
+        self.exist_images = []
+        self.save_directory_os = ''
+        self.hash_list = []
 
-        images_dir = project_name + '_images'
-        self.save_directory_os = os.path.join(bpy.path.abspath('//'), '..', images_dir, 'cross', 'scene-'
-                                              + str(self.target_camera))
-        self.save_directory = '//..\\' + images_dir + '\\cross\\scene-' + str(self.target_camera) + '\\'
-
-        exist_images = []
-
-        files = os.listdir(self.save_directory_os)
-        print('Walk in ' + self.save_directory_os)
-        for file in files:
-            if '.png' in file:
-                path_to_image = os.path.join(self.save_directory_os, file)
-                extract_data_from_path = re.findall(r'scene-(\d+).*root-(\d+).*frame-(\d+)', path_to_image)
-
-                exist_images.append({
-                    'scene': int(extract_data_from_path[0][0]),
-                    'root': int(extract_data_from_path[0][1]),
-                    'frame': int(extract_data_from_path[0][2]),
-                })
-
-        print('Start renders')
-        for i in self.closed_range(root_frame_start, root_frame_end):
-            for j in self.closed_range(frame_start, frame_end, self.frame_step):
-                exist_image_filter = lambda v: v['root'] == i and v['frame'] == j
-                exist_image = next(filter(exist_image_filter, exist_images), None)
-
-                print('Camera: ' + str(self.target_camera) + '. Root ' + str(i) + '. Frame: ' + str(
-                    j) + '. Image exist: ' + str(
-                    exist_image))
-
-                if not exist_image:
-                    # reset frame position
-                    self.setup_render_params(i, j)
-                    bpy.context.scene.frame_set(j)
-
-                    # render
-                    bpy.ops.render.render(animation=False, write_still=True)
+        self.set_save_directory()
+        self.set_exist_images()
+        self.set_hash_list()
+        self.render()
 
     def closed_range(self, start, stop, step=1):
         dir = 1 if (step > 0) else -1
@@ -97,5 +78,62 @@ class ExternalRender:
         box.location = cam.location
         box.rotation_euler = cam.rotation_euler
 
-        path_to_render_output = self.save_directory + 'root-' + str(root_frame) + '_frame-' + str(frame)
+        images_dir = self.project_name + '_images'
+        save_directory = '//..\\' + images_dir + '\\cross\\scene-' + str(self.target_camera) + '\\'
+        path_to_render_output = save_directory + 'root-' + str(root_frame) + '_frame-' + str(frame)
         bpy.data.scenes['Scene'].render.filepath = path_to_render_output
+
+    def set_save_directory(self):
+        images_dir = self.project_name + '_images'
+        scene = 'scene-' + str(self.target_camera)
+
+        self.save_directory_os = os.path.join(bpy.path.abspath('//'), '..', images_dir, 'cross', scene)
+
+    def set_exist_images(self):
+        files = os.listdir(self.save_directory_os)
+
+        print('Walk in ' + self.save_directory_os)
+        for file in files:
+            if '.png' in file:
+                path_to_image = os.path.join(self.save_directory_os, file)
+                extract_data_from_path = re.findall(r'scene-(\d+).*root-(\d+).*frame-(\d+)', path_to_image)
+
+                self.exist_images.append({
+                    'scene': int(extract_data_from_path[0][0]),
+                    'root': int(extract_data_from_path[0][1]),
+                    'frame': int(extract_data_from_path[0][2]),
+                })
+
+    def set_hash_list(self):
+        self.hash_list = []
+
+        for image in self.exist_images:
+            self.hash_list.append(get_hash_image(image))
+
+    def find_image_in_hash_list(self, image):
+        if get_hash_image(image) in self.hash_list:
+            return True
+
+        return False
+
+    def render(self):
+        print('Start renders')
+        for i in self.closed_range(self.root_frame_start, self.root_frame_end):
+            for j in self.closed_range(self.frame_start, self.frame_end, self.frame_step):
+                image_data = {
+                    'scene': self.target_camera,
+                    'root': i,
+                    'frame': j,
+                }
+                image_desc = 'Scene: ' + str(image_data['scene']) + '. Root: ' + str(i) + '. Frame: ' + str(j)
+
+                if self.find_image_in_hash_list(image_data):
+                    print('SKIP CALC FOR: ' + image_desc)
+                    continue
+
+                # reset frame position
+                self.setup_render_params(i, j)
+                bpy.context.scene.frame_set(j)
+
+                # render
+                bpy.ops.render.render(animation=False, write_still=True)
