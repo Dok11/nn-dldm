@@ -30,14 +30,13 @@ DATASET = {
     'archviz': {
         'code': 'archviz',
         'images_dir': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'archviz_images', 'cross'),
+        'images_per_root': 800,
     },
 }
 
 DATA_SOURCES = [
     DATASET['archviz'],
 ]
-
-IMAGES_PER_ROOT = 800
 
 
 def get_hash_image(image):
@@ -184,7 +183,7 @@ class DatasetCollector:
                 root_frames_counter[key] = 1
 
         for key in list(root_frames_counter.keys()):
-            if root_frames_counter[key] == IMAGES_PER_ROOT:
+            if root_frames_counter[key] == self.dataset['images_per_root']:
                 self.completed_roots.append(key)
 
     def is_image_calculated(self, image):
