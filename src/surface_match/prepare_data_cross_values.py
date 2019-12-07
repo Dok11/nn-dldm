@@ -37,10 +37,16 @@ DATA_SOURCES = [
     DATASET['archviz'],
 ]
 
+IMAGES_PER_ROOT = 800
+
 
 def get_hash_image(image):
     string = 's' + str(image['scene']) + 'r' + str(image['root']) + 'f' + str(image['frame'])
     return hashlib.md5(string.encode('utf-8')).hexdigest()
+
+
+def get_image_key(image):
+    return str(image['scene']) + '.' + str(image['root'])
 
 
 class DatasetCollector:
@@ -55,6 +61,9 @@ class DatasetCollector:
 
         # Hash list of exist data
         self.hash_list = []
+
+        # List of completed roots
+        self.completed_roots = []
 
         # List of exist scene folders
         self.scenes = []
@@ -79,6 +88,9 @@ class DatasetCollector:
         # Define hash list for calculated images
         self.set_hash_list()
 
+        # Define which root frames are fully calculated
+        self.set_completed_roots()
+
     def calc_values_for_images(self):
         counter = 0
 
@@ -89,7 +101,7 @@ class DatasetCollector:
             path = image_file['path']
             image_desc = 'Scene: ' + str(scene) + '. Root: ' + str(root) + '. Frame: ' + str(frame)
 
-            if self.find_image_in_data(image_file):
+            if self.is_image_calculated(image_file):
                 print('SKIP CALC FOR: ' + image_desc)
                 continue
 
@@ -113,11 +125,11 @@ class DatasetCollector:
             counter += 1
 
             if counter % 5000 == 0 and counter > 0:
-                print('Save file partial')
+                print('Save file partial with new records ' + str(counter))
                 self.save_data()
 
         # Save data to json
-        print('Save file complete')
+        print('Save file complete with new records ' + str(counter))
         self.save_data()
 
     def set_exist_file_data(self):
@@ -158,7 +170,29 @@ class DatasetCollector:
         for image in self.data:
             self.hash_list.append(get_hash_image(image))
 
-    def find_image_in_data(self, image):
+    def set_completed_roots(self):
+        self.completed_roots = []
+
+        root_frames_counter = {}
+
+        for item in self.data:
+            key = get_image_key(item)
+
+            try:
+                root_frames_counter[key] += 1
+            except KeyError:
+                root_frames_counter[key] = 1
+
+        for key in list(root_frames_counter.keys()):
+            if root_frames_counter[key] == IMAGES_PER_ROOT:
+                self.completed_roots.append(key)
+
+    def is_image_calculated(self, image):
+        # Check whole calculated roots
+        if get_image_key(image) in self.completed_roots:
+            return True
+
+        # Check image file personality
         if get_hash_image(image) in self.hash_list:
             return True
 
