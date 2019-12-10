@@ -20,6 +20,7 @@ DATA_SOURCES = [
     DATASET['archviz'],
 ]
 VALIDATION_PART = 0.2
+GROUP_COUNT = 10
 
 
 def get_image_as_np_array(path):
@@ -47,6 +48,9 @@ class DataCollector:
         # List of examples for dataset
         self.examples = []
 
+        # List of grouped examples by 10 groups
+        self.grouped_examples = []
+
         # ACTIONS:
         # Load data from json file which generated from Blender file
         self.load_json_data()
@@ -57,8 +61,8 @@ class DataCollector:
         # Set examples for dataset file
         self.set_examples()
 
-        # TODO: To divide examples by distribution int the 10 groups
-        # self.divide_examples
+        # Divide examples by distribution int the 10 groups
+        self.set_grouped_examples()
 
         # Collect dataset and save into npz file
         self.set_data()
@@ -105,6 +109,15 @@ class DataCollector:
 
             if match:
                 return image_key
+
+    def set_grouped_examples(self):
+        self.grouped_examples = [[] for i in range(GROUP_COUNT)]
+
+        for example in self.examples:
+            example_value = example[2]
+            group = round(example_value * (GROUP_COUNT - 1))
+            print(example, group)
+            self.grouped_examples[group].append(example)
 
     def set_data(self):
         # TODO: Collect examples into file with train and validation data by VALIDATION_PART
