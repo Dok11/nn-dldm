@@ -96,7 +96,8 @@ class DataCollector:
         self.examples = []
 
         for source in self.data_sources:
-            for item in source['surface_match_data']:
+            # TODO: remove [:50000] for full selection of examples
+            for item in source['surface_match_data'][:50000]:
                 image_root = self.get_image_by_regex('scene.*' + str(item['scene']) + '\\\.*' + str(item['root']) + '\.')
                 image_frame = self.get_image_by_regex('scene.*' + str(item['scene']) + '\\\.*' + str(item['frame']) + '\.')
 
@@ -120,8 +121,27 @@ class DataCollector:
             self.grouped_examples[group].append(example)
 
     def set_data(self):
-        # TODO: Collect examples into file with train and validation data by VALIDATION_PART
-        print('set_data')
+        data_train = [[] for i in range(GROUP_COUNT)]
+        data_valid = [[] for i in range(GROUP_COUNT)]
+
+        for group_index in range(len(self.grouped_examples)):
+            group = self.grouped_examples[group_index]
+
+            for example_index in range(len(group)):
+                example = group[example_index]
+
+                if example_index % (1 / VALIDATION_PART):
+                    data_train[group_index].append(example)
+                else:
+                    data_valid[group_index].append(example)
+
+        train_dir = os.path.join(CURRENT_DIR, '..', '..', 'train-data', 'surface_match')
+
+        if not (os.path.isdir(train_dir)):
+            os.mkdir(train_dir)
+
+        file = os.path.join(train_dir, 'data_' + str(SIZE_X) + 'x' + str(SIZE_Y))
+        np.savez(file, train=data_train, valid=data_valid, images=self.images_np_arr)
 
 
 if __name__ == '__main__':
