@@ -37,7 +37,7 @@ def get_dataset():
     return (
         file_data['train'],
         file_data['valid'],
-        np.array(file_data['images']),
+        np.array(file_data['images']) / 255.,
     )
 
 
@@ -149,8 +149,8 @@ def get_batch(data_groups):
         group_results = column(group_samples, 2)
 
         for sample_index in range(len(group_results)):
-            images_1.append(group_images_1[sample_index] / 255.)
-            images_2.append(group_images_2[sample_index] / 255.)
+            images_1.append(group_images_1[sample_index])
+            images_2.append(group_images_2[sample_index])
             results.append(group_results[sample_index])
 
     return images_1, images_2, results
