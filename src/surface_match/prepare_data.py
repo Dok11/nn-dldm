@@ -5,6 +5,11 @@ import re
 import numpy as np
 from keras_preprocessing.image import load_img, img_to_array
 
+
+# ============================================================================
+# --- GLOBAL PARAMS ----------------------------------------------------------
+# ----------------------------------------------------------------------------
+
 SIZE_X = 64  # 224 is native value
 SIZE_Y = 64  # 224 is native value
 CURRENT_DIR: str = os.getcwd()
@@ -20,7 +25,7 @@ DATA_SOURCES = [
     DATASET['archviz'],
 ]
 VALIDATION_PART = 0.2
-GROUP_COUNT = 10
+GROUP_COUNT = 10  # Usage in src/surface_match/train.py:21
 
 
 def get_image_as_np_array(path):

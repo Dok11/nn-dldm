@@ -8,7 +8,7 @@ from PIL import Image
 
 ######################################################################
 #
-# Script makes file with describe how many common surfaces
+# Script makes json-file with describe how many common surfaces
 # on the second image from first and have structure like this:
 # [
 #   {
