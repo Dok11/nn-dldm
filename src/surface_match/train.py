@@ -7,20 +7,17 @@ from tensorflow.python.keras import Input, Model
 from tensorflow.python.keras.callbacks_v1 import TensorBoard
 from tensorflow.python.keras.layers import Conv2D, BatchNormalization, Activation, MaxPooling2D, Dropout, concatenate, \
     Flatten, Dense
-from surface_match.dataset import get_batch, get_dataset
 
+from surface_match.config import IMG_SHAPE, SIZE_X, SIZE_Y
+from surface_match.dataset import get_batch, get_dataset, get_experimental_dataset
 
 # ============================================================================
 # --- GLOBAL PARAMS ----------------------------------------------------------
 # ----------------------------------------------------------------------------
 
-SIZE_X = 64  # 224 is native value
-SIZE_Y = 64  # 224 is native value
-IMG_SHAPE = (SIZE_Y, SIZE_X, 3)
 CURRENT_DIR: str = os.getcwd()
 SAVED_MODEL: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'surface_match', 'model.h5')
 SAVED_MODEL_W: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'surface_match', 'model_w.h5')
-GROUP_COUNT = 10  # Source from src/surface_match/prepare_data.py
 np.random.seed(0)
 tf.random.set_random_seed(0)
 
@@ -63,7 +60,7 @@ def get_image_branch():
 
     # 74x74 -> 37x37
     shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-    shared_layer = Dropout(0.35)(shared_layer)
+    # shared_layer = Dropout(0.35)(shared_layer)
 
     # 37x37 -> 37x37
     shared_layer = Conv2D(128, (3, 3), padding='same')(shared_layer)
@@ -72,7 +69,7 @@ def get_image_branch():
 
     # 37x37 -> 18x18
     shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-    shared_layer = Dropout(0.35)(shared_layer)
+    #shared_layer = Dropout(0.35)(shared_layer)
 
     return Model(shared_input, shared_layer, name='shared_model')
 
@@ -122,22 +119,20 @@ val_names = ['val_loss']
 (train, valid, images) = get_dataset(SIZE_X, SIZE_Y)
 train_batch_size = 30
 
-
-first_batch_t = get_batch(train, images, train_batch_size, GROUP_COUNT)
-first_batch_v = get_batch(valid, images, train_batch_size, GROUP_COUNT)
-
+experimental_batch_t = get_experimental_dataset(True)
+experimental_batch_v = get_experimental_dataset(False)
 
 # train
 sum_logs = []
 for batch in range(50000001):
-    (t_images_1, t_images_2, t_results) = first_batch_t  # get_batch(train)
+    (t_images_1, t_images_2, t_results) = experimental_batch_t  # get_batch(train)
 
     logs = model.train_on_batch(x=[t_images_1, t_images_2], y=t_results)
     sum_logs.append(logs)
 
     if batch % 200 == 0 and batch > 0:
         # check model on the validation data
-        (v_images_1, v_images_2, v_results) = first_batch_v  # get_batch(valid)
+        (v_images_1, v_images_2, v_results) = experimental_batch_v  # get_batch(valid)
         v_loss = model.test_on_batch(x=[v_images_1, v_images_2], y=v_results)
 
         avg_logs = np.average(sum_logs, axis=0)

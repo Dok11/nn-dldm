@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+from surface_match.config import FILE_NAME_VALID, FILE_NAME_TRAIN
 
 
 def column(matrix: list, i: int):
@@ -31,6 +32,18 @@ def get_batch(data_groups: list, images: np.ndarray, train_batch_size: int, grou
             results.append(group_results[sample_index])
 
     return images_1, images_2, results
+
+
+def get_experimental_dataset(use_train: bool):
+    if use_train:
+        file_name = FILE_NAME_TRAIN
+    else:
+        file_name = FILE_NAME_VALID
+
+    file_path = os.path.join(os.getcwd(), '..', '..', 'train-data', 'surface_match', file_name + '.npz')
+    file_data = np.load(file_path, allow_pickle=True)
+
+    return file_data['images_1'], file_data['images_2'], file_data['results']
 
 
 def get_dataset(x: int, y: int):
