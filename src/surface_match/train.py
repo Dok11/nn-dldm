@@ -7,6 +7,8 @@ from tensorflow.python.keras import Input, Model
 from tensorflow.python.keras.callbacks_v1 import TensorBoard
 from tensorflow.python.keras.layers import Conv2D, BatchNormalization, Activation, MaxPooling2D, Dropout, concatenate, \
     Flatten, Dense
+from surface_match.dataset import get_batch, get_dataset
+
 
 # ============================================================================
 # --- GLOBAL PARAMS ----------------------------------------------------------
@@ -19,26 +21,13 @@ CURRENT_DIR: str = os.getcwd()
 SAVED_MODEL: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'surface_match', 'model.h5')
 SAVED_MODEL_W: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'surface_match', 'model_w.h5')
 GROUP_COUNT = 10  # Source from src/surface_match/prepare_data.py
+np.random.seed(0)
+tf.random.set_random_seed(0)
 
 
 # ============================================================================
 # --- Gets dataset with x1, x2 and result as `y` -----------------------------
 # ----------------------------------------------------------------------------
-
-def column(matrix, i):
-    return np.array([row[i] for row in matrix])
-
-
-def get_dataset():
-    file_name = 'data_' + str(SIZE_X) + 'x' + str(SIZE_Y) + '.npz'
-    file_path = os.path.join(CURRENT_DIR, '..', '..', 'train-data', 'surface_match', file_name)
-    file_data = np.load(file_path, allow_pickle=True)
-
-    return (
-        file_data['train'],
-        file_data['valid'],
-        np.array(file_data['images']) / 255.,
-    )
 
 
 # tensorboard --logdir=./logs --host=127.0.0.1
@@ -68,7 +57,7 @@ def get_image_branch():
     shared_input = Input(IMG_SHAPE)
 
     # 224x224 -> 74x74
-    shared_layer = Conv2D(50, (5, 5), strides=3, input_shape=IMG_SHAPE, padding='valid')(shared_input)
+    shared_layer = Conv2D(64, (4, 4), strides=3, input_shape=IMG_SHAPE, padding='valid')(shared_input)
     shared_layer = BatchNormalization()(shared_layer)
     shared_layer = Activation('selu')(shared_layer)
 
@@ -77,7 +66,7 @@ def get_image_branch():
     shared_layer = Dropout(0.35)(shared_layer)
 
     # 37x37 -> 37x37
-    shared_layer = Conv2D(100, (4, 4), padding='same')(shared_layer)
+    shared_layer = Conv2D(128, (3, 3), padding='same')(shared_layer)
     shared_layer = BatchNormalization()(shared_layer)
     shared_layer = Activation('selu')(shared_layer)
 
@@ -98,15 +87,20 @@ branch_a = shared_model(image_a)
 branch_b = shared_model(image_b)
 
 merged_layers = concatenate([branch_a, branch_b])
-
 merged_layers = Flatten()(merged_layers)
+
+merged_layers = Dense(2048, activation='selu')(merged_layers)
+# merged_layers = Dropout(0.25)(merged_layers)
+merged_layers = BatchNormalization()(merged_layers)
+
 merged_layers = Dense(1024, activation='selu')(merged_layers)
-merged_layers = Dense(1024, activation='selu')(merged_layers)
+# merged_layers = Dropout(0.25)(merged_layers)
+merged_layers = BatchNormalization()(merged_layers)
 
 output = Dense(1, kernel_initializer='normal', activation='selu')(merged_layers)
 model = Model(inputs=[image_a, image_b], outputs=output)
-model.compile(optimizer=tf.keras.optimizers.Adam(0.00005, decay=0.00001),
-              loss='mse',
+model.compile(optimizer=tf.keras.optimizers.Adam(0.001),
+              loss='mae',
               metrics=[tf.keras.metrics.Accuracy()])
 
 model.summary()
@@ -125,54 +119,31 @@ callback.set_model(model)
 train_names = ['train_loss']
 val_names = ['val_loss']
 
-(train, valid, images) = get_dataset()
-train_batch_size = 60
+(train, valid, images) = get_dataset(SIZE_X, SIZE_Y)
+train_batch_size = 30
 
 
-def get_batch(data_groups):
-    samples_per_group = train_batch_size // GROUP_COUNT
-
-    images_1 = []
-    images_2 = []
-    results = []
-
-    for group_index in range(GROUP_COUNT):
-
-        group = np.array(data_groups[group_index])
-        group_samples_indexes = np.random.randint(0, len(group), samples_per_group)
-        group_samples = group[group_samples_indexes]
-
-        group_images_1_idx = column(group_samples, 0)
-        group_images_2_idx = column(group_samples, 1)
-        group_images_1 = images[group_images_1_idx.astype(int)]
-        group_images_2 = images[group_images_2_idx.astype(int)]
-        group_results = column(group_samples, 2)
-
-        for sample_index in range(len(group_results)):
-            images_1.append(group_images_1[sample_index])
-            images_2.append(group_images_2[sample_index])
-            results.append(group_results[sample_index])
-
-    return images_1, images_2, results
+first_batch_t = get_batch(train, images, train_batch_size, GROUP_COUNT)
+first_batch_v = get_batch(valid, images, train_batch_size, GROUP_COUNT)
 
 
 # train
 sum_logs = []
 for batch in range(50000001):
-    (t_images_1, t_images_2, t_results) = get_batch(train)
+    (t_images_1, t_images_2, t_results) = first_batch_t  # get_batch(train)
 
     logs = model.train_on_batch(x=[t_images_1, t_images_2], y=t_results)
     sum_logs.append(logs)
 
     if batch % 200 == 0 and batch > 0:
         # check model on the validation data
-        (v_images_1, v_images_2, v_results) = get_batch(valid)
+        (v_images_1, v_images_2, v_results) = first_batch_v  # get_batch(valid)
         v_loss = model.test_on_batch(x=[v_images_1, v_images_2], y=v_results)
 
         avg_logs = np.average(sum_logs, axis=0)
         sum_logs = []
 
-        print('%d [loss: %f]' % (batch, avg_logs[0]))
+        print('%d [loss: %f] [v. loss: %f]' % (batch, avg_logs[0], v_loss[0]))
         write_log(callback, train_names, avg_logs, batch)
         write_log(callback, val_names, v_loss, batch)
 
