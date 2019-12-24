@@ -49,8 +49,9 @@ def get_experimental_dataset(use_train: bool):
 
 
 def get_dataset(x: int, y: int):
+    dir = os.path.dirname(os.path.abspath(__file__))
     file_name = 'data_' + str(x) + 'x' + str(y) + '.npz'
-    file_path = os.path.join(os.getcwd(), '..', '..', 'train-data', 'surface_match', file_name)
+    file_path = os.path.join(dir, '..', '..', 'train-data', 'surface_match', file_name)
     file_data = np.load(file_path, allow_pickle=True)
 
     return (
