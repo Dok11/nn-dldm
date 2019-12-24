@@ -67,7 +67,7 @@ def get_image_branch():
     shared_layer = BatchNormalization()(shared_layer)
     shared_layer = Activation('selu')(shared_layer)
 
-    # 8x8 > x4x
+    # 8x8 > 4x4
     shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
     shared_layer = Dropout(0.0)(shared_layer)
 
@@ -87,11 +87,11 @@ merged_layers = concatenate([branch_a, branch_b])
 merged_layers = Flatten()(merged_layers)
 
 merged_layers = Dense(512, activation='selu')(merged_layers)
-merged_layers = Dropout(0.0)(merged_layers)
+merged_layers = Dropout(0.35)(merged_layers)
 merged_layers = BatchNormalization()(merged_layers)
 
 merged_layers = Dense(256, activation='selu')(merged_layers)
-merged_layers = Dropout(0.0)(merged_layers)
+merged_layers = Dropout(0.35)(merged_layers)
 merged_layers = BatchNormalization()(merged_layers)
 
 output = Dense(1, kernel_initializer='normal', activation='selu')(merged_layers)
