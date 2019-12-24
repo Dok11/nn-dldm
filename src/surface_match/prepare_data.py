@@ -4,14 +4,12 @@ import re
 
 import numpy as np
 from keras_preprocessing.image import load_img, img_to_array
-
+from surface_match.config import GROUP_COUNT, SIZE_Y, SIZE_X, CHANNELS
 
 # ============================================================================
 # --- GLOBAL PARAMS ----------------------------------------------------------
 # ----------------------------------------------------------------------------
 
-SIZE_X = 64  # 224 is native value
-SIZE_Y = 64  # 224 is native value
 CURRENT_DIR: str = os.getcwd()
 DATASET = {
     'archviz': {
@@ -25,11 +23,16 @@ DATA_SOURCES = [
     DATASET['archviz'],
 ]
 VALIDATION_PART = 0.2
-GROUP_COUNT = 10  # Usage in src/surface_match/train.py:21
 
 
 def get_image_as_np_array(path):
+    if CHANNELS == 3:
+        color_mode = 'rgb'
+    else:
+        color_mode = 'grayscale'
+
     img_loaded = load_img(path,
+                          color_mode=color_mode,
                           target_size=(SIZE_Y, SIZE_X),
                           interpolation='bicubic')
 
@@ -101,8 +104,7 @@ class DataCollector:
         self.examples = []
 
         for source in self.data_sources:
-            # TODO: remove [:50000] for full selection of examples
-            for item in source['surface_match_data'][:50000]:
+            for item in source['surface_match_data']:
                 image_root = self.get_image_by_regex('scene.*' + str(item['scene']) + '\\\.*' + str(item['root']) + '\.')
                 image_frame = self.get_image_by_regex('scene.*' + str(item['scene']) + '\\\.*' + str(item['frame']) + '\.')
 
