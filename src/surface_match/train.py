@@ -8,8 +8,8 @@ from tensorflow.python.keras.callbacks_v1 import TensorBoard
 from tensorflow.python.keras.layers import Conv2D, BatchNormalization, Activation, MaxPooling2D, Dropout, concatenate, \
     Flatten, Dense
 
-from surface_match.config import IMG_SHAPE, SIZE_X, SIZE_Y
-from surface_match.dataset import get_batch, get_dataset, get_experimental_dataset
+from surface_match.config import IMG_SHAPE, SIZE_X, SIZE_Y, GROUP_COUNT
+from surface_match.dataset import get_dataset, get_experimental_dataset, get_batch
 
 # ============================================================================
 # --- GLOBAL PARAMS ----------------------------------------------------------
@@ -53,23 +53,23 @@ def save_models(model_for_save):
 def get_image_branch():
     shared_input = Input(IMG_SHAPE)
 
-    # 224x224 -> 74x74
+    # 64x64 > 21x21
     shared_layer = Conv2D(64, (4, 4), strides=3, input_shape=IMG_SHAPE, padding='valid')(shared_input)
     shared_layer = BatchNormalization()(shared_layer)
     shared_layer = Activation('selu')(shared_layer)
 
-    # 74x74 -> 37x37
+    # 21x21 > 10x10
     shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-    # shared_layer = Dropout(0.35)(shared_layer)
+    shared_layer = Dropout(0.0)(shared_layer)
 
-    # 37x37 -> 37x37
-    shared_layer = Conv2D(128, (3, 3), padding='same')(shared_layer)
+    # 10x10 > 8x8
+    shared_layer = Conv2D(128, (3, 3), padding='valid')(shared_layer)
     shared_layer = BatchNormalization()(shared_layer)
     shared_layer = Activation('selu')(shared_layer)
 
-    # 37x37 -> 18x18
+    # 8x8 > x4x
     shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-    #shared_layer = Dropout(0.35)(shared_layer)
+    shared_layer = Dropout(0.0)(shared_layer)
 
     return Model(shared_input, shared_layer, name='shared_model')
 
@@ -86,25 +86,25 @@ branch_b = shared_model(image_b)
 merged_layers = concatenate([branch_a, branch_b])
 merged_layers = Flatten()(merged_layers)
 
-merged_layers = Dense(2048, activation='selu')(merged_layers)
-# merged_layers = Dropout(0.25)(merged_layers)
+merged_layers = Dense(512, activation='selu')(merged_layers)
+merged_layers = Dropout(0.0)(merged_layers)
 merged_layers = BatchNormalization()(merged_layers)
 
-merged_layers = Dense(1024, activation='selu')(merged_layers)
-# merged_layers = Dropout(0.25)(merged_layers)
+merged_layers = Dense(256, activation='selu')(merged_layers)
+merged_layers = Dropout(0.0)(merged_layers)
 merged_layers = BatchNormalization()(merged_layers)
 
 output = Dense(1, kernel_initializer='normal', activation='selu')(merged_layers)
 model = Model(inputs=[image_a, image_b], outputs=output)
-model.compile(optimizer=tf.keras.optimizers.Adam(0.001),
+model.compile(optimizer=tf.keras.optimizers.Adam(0.0025),
               loss='mae',
               metrics=[tf.keras.metrics.Accuracy()])
 
 model.summary()
 
-# if os.path.isfile(SAVED_MODEL_W):
-#     model.load_weights(SAVED_MODEL_W)
-#     print('weights are loaded')
+if os.path.isfile(SAVED_MODEL_W):
+    model.load_weights(SAVED_MODEL_W)
+    print('weights are loaded')
 
 
 # ============================================================================
@@ -125,14 +125,14 @@ experimental_batch_v = get_experimental_dataset(False)
 # train
 sum_logs = []
 for batch in range(50000001):
-    (t_images_1, t_images_2, t_results) = experimental_batch_t  # get_batch(train)
+    (t_images_1, t_images_2, t_results) = get_batch(train, images, train_batch_size, GROUP_COUNT)
 
     logs = model.train_on_batch(x=[t_images_1, t_images_2], y=t_results)
     sum_logs.append(logs)
 
     if batch % 200 == 0 and batch > 0:
         # check model on the validation data
-        (v_images_1, v_images_2, v_results) = experimental_batch_v  # get_batch(valid)
+        (v_images_1, v_images_2, v_results) = get_batch(valid, images, train_batch_size * 3, GROUP_COUNT)
         v_loss = model.test_on_batch(x=[v_images_1, v_images_2], y=v_results)
 
         avg_logs = np.average(sum_logs, axis=0)
