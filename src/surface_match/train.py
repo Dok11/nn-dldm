@@ -31,14 +31,14 @@ tf.random.set_random_seed(0)
 shutil.rmtree(os.path.join(CURRENT_DIR, 'logs'), ignore_errors=True)
 
 
-def write_log(callback, names, logs, batch_no):
-    for name, value in zip(names, logs):
+def write_log(callback_fn, names, current_logs, batch_no):
+    for name, value in zip(names, current_logs):
         summary = tf.Summary()
         summary_value = summary.value.add()
         summary_value.simple_value = value
         summary_value.tag = name
-        callback.writer.add_summary(summary, batch_no)
-        callback.writer.flush()
+        callback_fn.writer.add_summary(summary, batch_no)
+        callback_fn.writer.flush()
 
 
 def save_models(model_for_save):
