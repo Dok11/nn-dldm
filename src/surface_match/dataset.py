@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+
 from surface_match.config import FILE_NAME_VALID, FILE_NAME_TRAIN
 
 
@@ -16,9 +17,11 @@ def get_batch(data_groups: list, images: np.ndarray, train_batch_size: int, grou
     results = []
 
     for group_index in range(group_count):
-        group = np.array(data_groups[group_index])
-        group_samples_indexes = np.random.randint(0, len(group), samples_per_group)
-        group_samples = group[group_samples_indexes]
+        group_samples_indexes = np.random.randint(0, len(data_groups[group_index]), samples_per_group)
+
+        group_samples = []
+        for i in range(len(group_samples_indexes)):
+            group_samples.append(data_groups[group_index][i])
 
         group_images_1_idx = column(group_samples, 0)
         group_images_2_idx = column(group_samples, 1)
@@ -26,10 +29,9 @@ def get_batch(data_groups: list, images: np.ndarray, train_batch_size: int, grou
         group_images_2 = images[group_images_2_idx.astype(int)]
         group_results = column(group_samples, 2)
 
-        for sample_index in range(len(group_results)):
-            images_1.append(group_images_1[sample_index])
-            images_2.append(group_images_2[sample_index])
-            results.append(group_results[sample_index])
+        images_1.extend(group_images_1)
+        images_2.extend(group_images_2)
+        results.extend(group_results)
 
     return images_1, images_2, results
 
