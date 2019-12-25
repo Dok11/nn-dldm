@@ -21,7 +21,8 @@ def get_batch(data_groups: list, images: np.ndarray, train_batch_size: int, grou
 
         group_samples = []
         for i in range(len(group_samples_indexes)):
-            group_samples.append(data_groups[group_index][i])
+            group_sample_rnd_index = group_samples_indexes[i]
+            group_samples.append(data_groups[group_index][group_sample_rnd_index])
 
         group_images_1_idx = column(group_samples, 0)
         group_images_2_idx = column(group_samples, 1)
