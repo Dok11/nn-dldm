@@ -123,14 +123,16 @@ train_names = ['train_loss']
 val_names = ['val_loss']
 
 (train, valid, images) = get_dataset(SIZE_X, SIZE_Y)
-train_batch_size = 30
+train_batch_size = 120
 
 experimental_batch_t = get_experimental_dataset(True)
 experimental_batch_v = get_experimental_dataset(False)
 
 # train
+start_batch = 0
 sum_logs = []
-for batch in range(50000001):
+for batch_index in range(50000001):
+    batch = batch_index + start_batch
     (t_images_1, t_images_2, t_results) = get_batch(train, images, train_batch_size, GROUP_COUNT)
 
     logs = model.train_on_batch(x=[t_images_1, t_images_2], y=t_results)
@@ -144,7 +146,7 @@ for batch in range(50000001):
         avg_logs = np.average(sum_logs, axis=0)
         sum_logs = []
 
-        print('%d [loss: %f] [v. loss: %f]' % (batch, avg_logs[0], v_loss[0]))
+        print('%d [loss: %f] [v. loss: %f] on batch=%d' % (batch, avg_logs[0], v_loss[0], train_batch_size))
         write_log(callback, train_names, avg_logs, batch)
         write_log(callback, val_names, v_loss, batch)
 
