@@ -50,6 +50,12 @@ def save_models(model_for_save):
 # --- Construct neural network -----------------------------------------------
 # ----------------------------------------------------------------------------
 
+def loss_in_fact(y_true, y_pred):
+    error = tf.math.subtract(y_pred, y_true)
+    error_abs = tf.math.abs(error)
+    return tf.math.reduce_mean(error_abs, axis=0)
+
+
 def get_image_branch():
     shared_input = Input(IMG_SHAPE)
 
@@ -98,7 +104,7 @@ output = Dense(1, kernel_initializer='normal', activation='selu')(merged_layers)
 model = Model(inputs=[image_a, image_b], outputs=output)
 model.compile(optimizer=tf.keras.optimizers.Adam(0.0025),
               loss='mae',
-              metrics=[tf.keras.metrics.Accuracy()])
+              metrics=[loss_in_fact])
 
 model.summary()
 
