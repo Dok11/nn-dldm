@@ -1,6 +1,9 @@
 import os
 
 import numpy as np
+import tensorflow as tf
+from albumentations import Compose, RandomBrightnessContrast
+from tensorflow.python.keras.preprocessing.image import save_img
 
 from surface_match.config import FILE_NAME_VALID, FILE_NAME_TRAIN
 
@@ -15,6 +18,7 @@ def get_batch(data_groups: list, images: np.ndarray, train_batch_size: int, grou
     images_1 = []
     images_2 = []
     results = []
+    indexes = []
 
     for group_index in range(group_count):
         group_samples_indexes = np.random.randint(0, len(data_groups[group_index]), samples_per_group)
@@ -23,6 +27,7 @@ def get_batch(data_groups: list, images: np.ndarray, train_batch_size: int, grou
         for i in range(len(group_samples_indexes)):
             group_sample_rnd_index = group_samples_indexes[i]
             group_samples.append(data_groups[group_index][group_sample_rnd_index])
+            indexes.append([group_index, group_sample_rnd_index])
 
         group_images_1_idx = column(group_samples, 0)
         group_images_2_idx = column(group_samples, 1)
@@ -34,7 +39,7 @@ def get_batch(data_groups: list, images: np.ndarray, train_batch_size: int, grou
         images_2.extend(group_images_2)
         results.extend(group_results)
 
-    return images_1, images_2, results
+    return images_1, images_2, results, indexes
 
 
 def get_experimental_dataset(use_train: bool):
@@ -60,3 +65,19 @@ def get_dataset(x: int, y: int):
         file_data['valid'],
         np.array(file_data['images']) / 255.,
     )
+
+
+def save_image(data, name):
+    save_img(name, data)
+
+
+def aug(p=0.5):
+    return Compose([
+        RandomBrightnessContrast(),
+    ], p=p)
+
+
+def loss_in_fact(y_true, y_pred):
+    error = tf.math.subtract(y_pred, y_true)
+    error_abs = tf.math.abs(error)
+    return tf.math.reduce_mean(error_abs, axis=0)

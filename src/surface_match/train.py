@@ -31,11 +31,6 @@ def write_log(callback_fn, names, current_logs, batch_no):
         callback_fn.writer.flush()
 
 
-def save_models(model_for_save):
-    model_for_save.save(SAVED_MODEL)
-    model_for_save.save_weights(SAVED_MODEL_W)
-
-
 # ============================================================================
 # --- Get neural network -----------------------------------------------------
 # ----------------------------------------------------------------------------
@@ -67,14 +62,14 @@ start_batch = 0
 sum_logs = []
 for batch_index in range(50000001):
     batch = batch_index + start_batch
-    (t_images_1, t_images_2, t_results) = get_batch(train, images, train_batch_size, GROUP_COUNT)
+    (t_images_1, t_images_2, t_results, indexes) = get_batch(train, images, train_batch_size, GROUP_COUNT)
 
     logs = model.train_on_batch(x=[t_images_1, t_images_2], y=t_results)
     sum_logs.append(logs)
 
     if batch % 200 == 0 and batch > 0:
         # check model on the validation data
-        (v_images_1, v_images_2, v_results) = get_batch(valid, images, train_batch_size * 3, GROUP_COUNT)
+        (v_images_1, v_images_2, v_results, indexes) = get_batch(valid, images, train_batch_size * 3, GROUP_COUNT)
         v_loss = model.test_on_batch(x=[v_images_1, v_images_2], y=v_results)
 
         avg_logs = np.average(sum_logs, axis=0)
