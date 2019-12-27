@@ -3,29 +3,19 @@ import shutil
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.keras import Input, Model
 from tensorflow.python.keras.callbacks_v1 import TensorBoard
-from tensorflow.python.keras.layers import Conv2D, BatchNormalization, Activation, MaxPooling2D, Dropout, concatenate, \
-    Flatten, Dense
 
-from surface_match.config import IMG_SHAPE, SIZE_X, SIZE_Y, GROUP_COUNT
+from surface_match.config import SIZE_X, SIZE_Y, GROUP_COUNT, CURRENT_DIR, SAVED_MODEL_W
 from surface_match.dataset import get_dataset, get_experimental_dataset, get_batch
+from surface_match.model import get_model, save_models
 
-# ============================================================================
-# --- GLOBAL PARAMS ----------------------------------------------------------
-# ----------------------------------------------------------------------------
-
-CURRENT_DIR: str = os.getcwd()
-SAVED_MODEL: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'surface_match', 'model.h5')
-SAVED_MODEL_W: str = os.path.join(CURRENT_DIR, '..', '..', 'models', 'surface_match', 'model_w.h5')
 np.random.seed(0)
 tf.random.set_random_seed(0)
 
 
 # ============================================================================
-# --- Gets dataset with x1, x2 and result as `y` -----------------------------
+# --- Gets dataset with x1, x2 and result as y -------------------------------
 # ----------------------------------------------------------------------------
-
 
 # tensorboard --logdir=./logs --host=127.0.0.1
 shutil.rmtree(os.path.join(CURRENT_DIR, 'logs'), ignore_errors=True)
@@ -47,66 +37,10 @@ def save_models(model_for_save):
 
 
 # ============================================================================
-# --- Construct neural network -----------------------------------------------
+# --- Get neural network -----------------------------------------------------
 # ----------------------------------------------------------------------------
 
-def loss_in_fact(y_true, y_pred):
-    error = tf.math.subtract(y_pred, y_true)
-    error_abs = tf.math.abs(error)
-    return tf.math.reduce_mean(error_abs, axis=0)
-
-
-def get_image_branch():
-    shared_input = Input(IMG_SHAPE)
-
-    # 64x64 > 21x21
-    shared_layer = Conv2D(64, (4, 4), strides=3, input_shape=IMG_SHAPE, padding='valid')(shared_input)
-    shared_layer = BatchNormalization()(shared_layer)
-    shared_layer = Activation('selu')(shared_layer)
-
-    # 21x21 > 10x10
-    shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-    shared_layer = Dropout(0.1)(shared_layer)
-
-    # 10x10 > 8x8
-    shared_layer = Conv2D(128, (3, 3), padding='valid')(shared_layer)
-    shared_layer = BatchNormalization()(shared_layer)
-    shared_layer = Activation('selu')(shared_layer)
-
-    # 8x8 > 4x4
-    shared_layer = MaxPooling2D(pool_size=(2, 2))(shared_layer)
-    shared_layer = Dropout(0.1)(shared_layer)
-
-    return Model(shared_input, shared_layer, name='shared_model')
-
-
-shared_model = get_image_branch()
-shared_model.summary()
-
-image_a = Input(IMG_SHAPE)
-image_b = Input(IMG_SHAPE)
-
-branch_a = shared_model(image_a)
-branch_b = shared_model(image_b)
-
-merged_layers = concatenate([branch_a, branch_b])
-merged_layers = Flatten()(merged_layers)
-
-merged_layers = Dense(512, activation='selu')(merged_layers)
-merged_layers = Dropout(0.5)(merged_layers)
-merged_layers = BatchNormalization()(merged_layers)
-
-merged_layers = Dense(256, activation='selu')(merged_layers)
-merged_layers = Dropout(0.5)(merged_layers)
-merged_layers = BatchNormalization()(merged_layers)
-
-output = Dense(1, kernel_initializer='normal', activation='selu')(merged_layers)
-model = Model(inputs=[image_a, image_b], outputs=output)
-model.compile(optimizer=tf.keras.optimizers.Adam(0.0025),
-              loss='mae',
-              metrics=[loss_in_fact])
-
-model.summary()
+model = get_model()
 
 if os.path.isfile(SAVED_MODEL_W):
     model.load_weights(SAVED_MODEL_W)
