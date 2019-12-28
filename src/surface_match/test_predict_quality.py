@@ -24,7 +24,7 @@ hard_indexes = []
 test_batches = int(10 * train_examples / batch_generator.train_batch_size)
 
 for batch in range(test_batches):
-    (t_images_1, t_images_2, t_results, indexes) = batch_generator.get_batch()
+    (t_images_1, t_images_2, t_results, indexes) = batch_generator.get_batch_train()
     result = model.predict(x=[t_images_1, t_images_2])
 
     for index in range(batch_size):

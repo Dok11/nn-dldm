@@ -50,20 +50,21 @@ def write_log(callback_fn, names, current_logs, batch_no):
 # ----------------------------------------------------------------------------
 
 batch_generator = BatchGenerator()
+batch_generator.load_hard_examples()
 
 # train
 start_batch = 0
 sum_logs = []
 for batch_index in range(50000001):
     batch = batch_index + start_batch
-    (t_images_1, t_images_2, t_results, indexes) = batch_generator.get_batch()
+    (t_images_1, t_images_2, t_results, indexes) = batch_generator.get_batch_train()
 
     logs = model.train_on_batch(x=[t_images_1, t_images_2], y=t_results)
     sum_logs.append(logs)
 
     if batch % 200 == 0 and batch > 0:
         # check model on the validation data
-        (v_images_1, v_images_2, v_results, indexes) = batch_generator.get_batch(False)
+        (v_images_1, v_images_2, v_results, indexes) = batch_generator.get_batch_valid()
         v_loss = model.test_on_batch(x=[v_images_1, v_images_2], y=v_results)
 
         avg_logs = np.average(sum_logs, axis=0)

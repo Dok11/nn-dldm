@@ -1,11 +1,13 @@
+import json
 import os
+import random
 
 import numpy as np
 import tensorflow as tf
 from albumentations import Compose, RandomBrightnessContrast
 from tensorflow.python.keras.preprocessing.image import save_img
 
-from surface_match.config import FILE_NAME_VALID, FILE_NAME_TRAIN, SIZE_X, SIZE_Y, GROUP_COUNT
+from surface_match.config import FILE_NAME_VALID, FILE_NAME_TRAIN, SIZE_X, SIZE_Y, GROUP_COUNT, CURRENT_DIR
 
 
 def column(matrix: list, i: int):
@@ -16,22 +18,33 @@ class BatchGenerator:
     def __init__(self):
         self.train: list = []
         self.valid: list = []
+        self.hard_examples: list = []
         self.images: np.ndarray = np.array([])
-        self.train_batch_size = 120
+        self.train_batch_size = 160
         self.valid_batch_size = 300
+        self.samples_per_group = self.train_batch_size // GROUP_COUNT
 
         self.load_dataset()
 
     def load_dataset(self):
         (self.train, self.valid, self.images) = get_dataset(SIZE_X, SIZE_Y)
 
-    def get_batch(self, train=True):
-        samples_per_group = self.train_batch_size // GROUP_COUNT
+    def load_hard_examples(self):
+        path = os.path.join(CURRENT_DIR, 'hard_indexes.json')
 
-        if train:
-            data_groups = self.train
-        else:
-            data_groups = self.valid
+        with open(path, 'r') as read_file:
+            hard_examples = json.load(read_file)
+
+        self.hard_examples = [[] for i in range(GROUP_COUNT)]
+        for i in range(len(hard_examples)):
+            hard_example = hard_examples[i]
+            group = self.train[hard_example[0]]
+            example = group[hard_example[1]]
+
+            self.hard_examples[hard_example[0]].append(example)
+
+    def get_batch(self, data_groups):
+        self.samples_per_group = self.train_batch_size // GROUP_COUNT
 
         images_1 = []
         images_2 = []
@@ -39,25 +52,54 @@ class BatchGenerator:
         indexes = []
 
         for group_index in range(GROUP_COUNT):
-            group_samples_indexes = np.random.randint(0, len(data_groups[group_index]), samples_per_group)
-
-            group_samples = []
-            for i in range(len(group_samples_indexes)):
-                group_sample_rnd_index = group_samples_indexes[i]
-                group_samples.append(data_groups[group_index][group_sample_rnd_index])
-                indexes.append([group_index, group_sample_rnd_index])
-
-            group_images_1_idx = column(group_samples, 0)
-            group_images_2_idx = column(group_samples, 1)
-            group_images_1 = self.images[group_images_1_idx.astype(int)]
-            group_images_2 = self.images[group_images_2_idx.astype(int)]
-            group_results = column(group_samples, 2)
+            (group_images_1, group_images_2, group_results, group_indexes) =\
+                self.get_group_examples(group_index, data_groups[group_index])
 
             images_1.extend(group_images_1)
             images_2.extend(group_images_2)
             results.extend(group_results)
+            indexes.extend(group_indexes)
 
         return images_1, images_2, results, indexes
+
+    def get_batch_train(self):
+        return self.get_batch(self.train)
+
+    def get_batch_valid(self):
+        return self.get_batch(self.valid)
+
+    def get_batch_hard(self):
+        self.samples_per_group = self.train_batch_size // GROUP_COUNT
+
+        data_groups = self.hard_examples[:]
+
+        for group_index in range(GROUP_COUNT):
+            group: list[int, int, float] = data_groups[group_index]
+            examples_delta = self.samples_per_group - len(group)
+
+            if examples_delta > 0:
+                examples_from_train = random.choices(self.train[group_index], k=examples_delta)
+                data_groups[group_index] = group + examples_from_train
+
+        return self.get_batch(data_groups)
+
+    def get_group_examples(self, group_index, group):
+        group_samples_indexes = np.random.randint(0, len(group), self.samples_per_group)
+
+        group_indexes = []
+        group_samples = []
+        for i in range(len(group_samples_indexes)):
+            group_sample_rnd_index = group_samples_indexes[i]
+            group_samples.append(group[group_sample_rnd_index])
+            group_indexes.append([group_index, group_sample_rnd_index])
+
+        group_images_1_idx = column(group_samples, 0)
+        group_images_2_idx = column(group_samples, 1)
+        group_images_1 = self.images[group_images_1_idx.astype(int)]
+        group_images_2 = self.images[group_images_2_idx.astype(int)]
+        group_results = column(group_samples, 2)
+
+        return group_images_1, group_images_2, group_results, group_indexes
 
 
 def get_experimental_dataset(use_train: bool):
