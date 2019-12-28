@@ -5,41 +5,59 @@ import tensorflow as tf
 from albumentations import Compose, RandomBrightnessContrast
 from tensorflow.python.keras.preprocessing.image import save_img
 
-from surface_match.config import FILE_NAME_VALID, FILE_NAME_TRAIN
+from surface_match.config import FILE_NAME_VALID, FILE_NAME_TRAIN, SIZE_X, SIZE_Y, GROUP_COUNT
 
 
 def column(matrix: list, i: int):
     return np.array([row[i] for row in matrix])
 
 
-def get_batch(data_groups: list, images: np.ndarray, train_batch_size: int, group_count: int):
-    samples_per_group = train_batch_size // group_count
+class BatchGenerator:
+    def __init__(self):
+        self.train: list = []
+        self.valid: list = []
+        self.images: np.ndarray = np.array([])
+        self.train_batch_size = 120
+        self.valid_batch_size = 300
 
-    images_1 = []
-    images_2 = []
-    results = []
-    indexes = []
+        self.load_dataset()
 
-    for group_index in range(group_count):
-        group_samples_indexes = np.random.randint(0, len(data_groups[group_index]), samples_per_group)
+    def load_dataset(self):
+        (self.train, self.valid, self.images) = get_dataset(SIZE_X, SIZE_Y)
 
-        group_samples = []
-        for i in range(len(group_samples_indexes)):
-            group_sample_rnd_index = group_samples_indexes[i]
-            group_samples.append(data_groups[group_index][group_sample_rnd_index])
-            indexes.append([group_index, group_sample_rnd_index])
+    def get_batch(self, train=True):
+        samples_per_group = self.train_batch_size // GROUP_COUNT
 
-        group_images_1_idx = column(group_samples, 0)
-        group_images_2_idx = column(group_samples, 1)
-        group_images_1 = images[group_images_1_idx.astype(int)]
-        group_images_2 = images[group_images_2_idx.astype(int)]
-        group_results = column(group_samples, 2)
+        if train:
+            data_groups = self.train
+        else:
+            data_groups = self.valid
 
-        images_1.extend(group_images_1)
-        images_2.extend(group_images_2)
-        results.extend(group_results)
+        images_1 = []
+        images_2 = []
+        results = []
+        indexes = []
 
-    return images_1, images_2, results, indexes
+        for group_index in range(GROUP_COUNT):
+            group_samples_indexes = np.random.randint(0, len(data_groups[group_index]), samples_per_group)
+
+            group_samples = []
+            for i in range(len(group_samples_indexes)):
+                group_sample_rnd_index = group_samples_indexes[i]
+                group_samples.append(data_groups[group_index][group_sample_rnd_index])
+                indexes.append([group_index, group_sample_rnd_index])
+
+            group_images_1_idx = column(group_samples, 0)
+            group_images_2_idx = column(group_samples, 1)
+            group_images_1 = self.images[group_images_1_idx.astype(int)]
+            group_images_2 = self.images[group_images_2_idx.astype(int)]
+            group_results = column(group_samples, 2)
+
+            images_1.extend(group_images_1)
+            images_2.extend(group_images_2)
+            results.extend(group_results)
+
+        return images_1, images_2, results, indexes
 
 
 def get_experimental_dataset(use_train: bool):

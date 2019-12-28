@@ -1,10 +1,8 @@
-from surface_match.config import SIZE_X, SIZE_Y, GROUP_COUNT
-from surface_match.dataset import get_dataset, get_batch
+from surface_match.dataset import BatchGenerator
 
 
-(train, valid, images) = get_dataset(SIZE_X, SIZE_Y)
-batch_size = 30
+batch_generator = BatchGenerator()
 
 # python -m cProfile -s time surface_match/test_get_batch.py 10001
 for batch in range(100):
-    x = get_batch(train, images, batch_size, GROUP_COUNT)
+    x = batch_generator.get_batch()

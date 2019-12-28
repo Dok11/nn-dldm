@@ -5,13 +5,11 @@ import os
 from tensorflow.python.keras import Model
 from tensorflow.python.keras.preprocessing.image import save_img
 
-from surface_match.config import SIZE_X, SIZE_Y, SAVED_MODEL_W, GROUP_COUNT, CURRENT_DIR
-from surface_match.dataset import get_dataset, get_batch
+from surface_match.config import SAVED_MODEL_W, CURRENT_DIR
+from surface_match.dataset import BatchGenerator
 from surface_match.model import get_model
 
-(train, valid, images) = get_dataset(SIZE_X, SIZE_Y)
-
-train_batch_size = 1000
+batch_size = 1000
 train_examples = 1536000
 
 model: Model = get_model()
@@ -19,20 +17,23 @@ model.load_weights(SAVED_MODEL_W)
 model.summary()
 save_images = False
 
+batch_generator = BatchGenerator()
+batch_generator.train_batch_size = batch_size
+
 hard_indexes = []
-test_batches = int(10 * train_examples / train_batch_size)
+test_batches = int(10 * train_examples / batch_generator.train_batch_size)
 
 for batch in range(test_batches):
-    (t_images_1, t_images_2, t_results, indexes) = get_batch(train, images, train_batch_size, GROUP_COUNT)
+    (t_images_1, t_images_2, t_results, indexes) = batch_generator.get_batch()
     result = model.predict(x=[t_images_1, t_images_2])
 
-    for index in range(train_batch_size):
+    for index in range(batch_size):
         real_result = t_results[index]
         predicted_result = result[index][0]
         delta = abs(predicted_result - real_result)
 
         if delta > 0.33:
-            print('Save b:' + str(batch) + '/' + str(test_batches) + ' i:' + str(index) + '/' + str(train_batch_size))
+            print('Save b:' + str(batch) + '/' + str(test_batches) + ' i:' + str(index) + '/' + str(batch_size))
             hard_indexes.append([
                 int(indexes[index][0]),
                 int(indexes[index][1]),
