@@ -14,11 +14,25 @@ tf.random.set_random_seed(0)
 
 
 # ============================================================================
-# --- Gets dataset with x1, x2 and result as y -------------------------------
+# --- Get neural network -----------------------------------------------------
+# ----------------------------------------------------------------------------
+
+model = get_model()
+
+if os.path.isfile(SAVED_MODEL_W):
+    model.load_weights(SAVED_MODEL_W)
+    print('weights are loaded')
+
+
+# ============================================================================
+# --- Create logger ----------------------------------------------------------
 # ----------------------------------------------------------------------------
 
 # tensorboard --logdir=./logs --host=127.0.0.1
 shutil.rmtree(os.path.join(CURRENT_DIR, 'logs'), ignore_errors=True)
+
+callback = TensorBoard('./logs')
+callback.set_model(model)
 
 
 def write_log(callback_fn, names, current_logs, batch_no):
@@ -32,24 +46,8 @@ def write_log(callback_fn, names, current_logs, batch_no):
 
 
 # ============================================================================
-# --- Get neural network -----------------------------------------------------
-# ----------------------------------------------------------------------------
-
-model = get_model()
-
-if os.path.isfile(SAVED_MODEL_W):
-    model.load_weights(SAVED_MODEL_W)
-    print('weights are loaded')
-
-
-# ============================================================================
 # --- Train and print accuracy -----------------------------------------------
 # ----------------------------------------------------------------------------
-
-callback = TensorBoard('./logs')
-callback.set_model(model)
-train_names = ['train_loss']
-val_names = ['val_loss']
 
 batch_generator = BatchGenerator()
 
@@ -72,8 +70,8 @@ for batch_index in range(50000001):
         sum_logs = []
 
         print('%d [loss: %f] [v. loss: %f]' % (batch, avg_logs[0], v_loss[0]))
-        write_log(callback, train_names, avg_logs, batch)
-        write_log(callback, val_names, v_loss, batch)
+        write_log(callback, ['train_loss'], avg_logs, batch)
+        write_log(callback, ['val_loss'], v_loss, batch)
 
     if batch % 5000 == 0 and batch > 0:
         save_models(model)
