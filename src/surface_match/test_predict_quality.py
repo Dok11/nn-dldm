@@ -11,6 +11,7 @@ from surface_match.model import get_model
 
 batch_size = 1000
 train_examples = 1536000
+error_threshold = 0.21
 
 model: Model = get_model()
 model.load_weights(SAVED_MODEL_W)
@@ -21,7 +22,7 @@ batch_generator = BatchGenerator()
 batch_generator.train_batch_size = batch_size
 
 hard_indexes = []
-test_batches = int(10 * train_examples / batch_generator.train_batch_size)
+test_batches = int(2 * train_examples / batch_generator.train_batch_size)
 
 for batch in range(test_batches):
     (t_images_1, t_images_2, t_results, indexes) = batch_generator.get_batch_train()
@@ -32,7 +33,7 @@ for batch in range(test_batches):
         predicted_result = result[index][0]
         delta = abs(predicted_result - real_result)
 
-        if delta > 0.33:
+        if delta > error_threshold:
             print('Save b:' + str(batch) + '/' + str(test_batches) + ' i:' + str(index) + '/' + str(batch_size))
             hard_indexes.append([
                 int(indexes[index][0]),
@@ -51,7 +52,7 @@ for batch in range(test_batches):
                 save_img('bad_predictions/' + target_name, t_images_2[index])
 
 
-print('Start save unique values')
+print('Start save unique values from ' + str(len(hard_indexes)))
 
 examples_hash_list = []
 unique_hard_indexes = []
@@ -67,6 +68,8 @@ for i in range(len(hard_indexes)):
         unique_hard_indexes.append(hard_indexes[i])
         examples_hash_list.append(hash_key)
 
+
+print('Unique values count ' + str(len(unique_hard_indexes)))
 
 f = open(os.path.join(CURRENT_DIR, 'hard_indexes.json'), 'w', encoding='utf-8')
 json.dump(unique_hard_indexes, f, ensure_ascii=False, indent=2)
