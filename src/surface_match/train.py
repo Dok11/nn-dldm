@@ -9,8 +9,9 @@ from surface_match.config import CURRENT_DIR, SAVED_MODEL_W
 from surface_match.dataset import BatchGenerator
 from surface_match.model import get_model, save_models
 
-np.random.seed(0)
-tf.random.set_random_seed(0)
+seed = 9
+np.random.seed(seed)
+tf.random.set_random_seed(seed)
 
 
 # ============================================================================
