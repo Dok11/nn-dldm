@@ -20,6 +20,8 @@ save_images = False
 
 batch_generator = BatchGenerator()
 batch_generator.train_batch_size = batch_size
+batch_generator.init_weights()
+batch_generator.init_weight_normalize()
 
 hard_indexes = []
 test_batches = int(2 * train_examples / batch_generator.train_batch_size)

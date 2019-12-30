@@ -1,10 +1,12 @@
 import json
 import os
 import random
+from typing import List, Tuple
 
 import numpy as np
 import tensorflow as tf
 from albumentations import Compose, RandomBrightnessContrast
+from tensorflow.python.keras import Model
 from tensorflow.python.keras.preprocessing.image import save_img
 
 from surface_match.config import FILE_NAME_VALID, FILE_NAME_TRAIN, SIZE_X, SIZE_Y, GROUP_COUNT, CURRENT_DIR
@@ -16,15 +18,26 @@ def column(matrix: list, i: int):
 
 class BatchGenerator:
     def __init__(self):
-        self.train: list = []
-        self.valid: list = []
-        self.hard_examples: list = []
+        self.train: List = []
+        self.train_weights: List[List[float]] = []
+        self.train_weights_normalize: List[np.ndarray] = []
+
+        self.valid: List = []
+        self.valid_weights: List[List[float]] = []
+        self.valid_weights_normalize: List[np.ndarray] = []
+
+        self.hard_examples: List = []
         self.images: np.ndarray = np.array([])
-        self.train_batch_size = 160
-        self.valid_batch_size = 300
-        self.samples_per_group = self.train_batch_size // GROUP_COUNT
+
+        self.train_batch_size: int = 160
+        self.valid_batch_size: int = 300
+        self.samples_per_group: int = self.train_batch_size // GROUP_COUNT
+        self.default_weight: float = 0.5
+
+        self.train_weights_file = os.path.join(os.getcwd(), '..', '..', 'models', 'surface_match', 'train_weights.npz')
 
         self.load_dataset()
+        self.init_weights()
 
     def load_dataset(self):
         (self.train, self.valid, self.images) = get_dataset(SIZE_X, SIZE_Y)
@@ -35,7 +48,7 @@ class BatchGenerator:
         with open(path, 'r') as read_file:
             hard_examples = json.load(read_file)
 
-        self.hard_examples = [[] for i in range(GROUP_COUNT)]
+        self.hard_examples = [[] for _ in range(GROUP_COUNT)]
         for i in range(len(hard_examples)):
             hard_example = hard_examples[i]
             group = self.train[hard_example[0]]
@@ -43,7 +56,7 @@ class BatchGenerator:
 
             self.hard_examples[hard_example[0]].append(example)
 
-    def get_batch(self, data_groups):
+    def get_batch(self, data_groups, weights):
         self.samples_per_group = self.train_batch_size // GROUP_COUNT
 
         images_1 = []
@@ -53,7 +66,7 @@ class BatchGenerator:
 
         for group_index in range(GROUP_COUNT):
             (group_images_1, group_images_2, group_results, group_indexes) =\
-                self.get_group_examples(group_index, data_groups[group_index])
+                self.get_group_examples(group_index, data_groups[group_index], weights[group_index])
 
             images_1.extend(group_images_1)
             images_2.extend(group_images_2)
@@ -63,10 +76,10 @@ class BatchGenerator:
         return images_1, images_2, results, indexes
 
     def get_batch_train(self):
-        return self.get_batch(self.train)
+        return self.get_batch(self.train, self.train_weights_normalize)
 
     def get_batch_valid(self):
-        return self.get_batch(self.valid)
+        return self.get_batch(self.valid, self.valid_weights_normalize)
 
     def get_batch_hard(self):
         self.samples_per_group = self.train_batch_size // GROUP_COUNT
@@ -74,17 +87,19 @@ class BatchGenerator:
         data_groups = self.hard_examples[:]
 
         for group_index in range(GROUP_COUNT):
-            group: list[int, int, float] = data_groups[group_index]
+            group: List[int, int, float] = data_groups[group_index]
             examples_delta = self.samples_per_group - len(group)
 
             if examples_delta > 0:
                 examples_from_train = random.choices(self.train[group_index], k=examples_delta)
                 data_groups[group_index] = group + examples_from_train
 
-        return self.get_batch(data_groups)
+        return self.get_batch(data_groups, self.train_weights)
 
-    def get_group_examples(self, group_index, group):
-        group_samples_indexes = np.random.randint(0, len(group), self.samples_per_group)
+    def get_group_examples(self, group_index, group, weights):
+        # https://github.com/numpy/numpy/issues/4188
+        # https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.multinomial.html
+        group_samples_indexes = np.random.choice(len(group), self.samples_per_group, p=weights)
 
         group_indexes = []
         group_samples = []
@@ -100,6 +115,73 @@ class BatchGenerator:
         group_results = column(group_samples, 2)
 
         return group_images_1, group_images_2, group_results, group_indexes
+
+    def init_weights(self):
+        # Train weights
+        self.train_weights = []
+
+        for train_group_index in range(len(self.train)):
+            self.train_weights.append([])
+
+            for i in range(len(self.train[train_group_index])):
+                self.train_weights[train_group_index].append(self.default_weight)
+
+        # Valid weights
+        self.valid_weights = []
+
+        for valid_group_index in range(len(self.valid)):
+            self.valid_weights.append([])
+
+            for i in range(len(self.valid[valid_group_index])):
+                self.valid_weights[valid_group_index].append(self.default_weight)
+
+    def init_weight_normalize(self):
+        self.train_weights_normalize = []
+        for weights in self.train_weights:
+            weights_np = np.array(weights)
+            weights_np /= weights_np.sum()
+            self.train_weights_normalize.append(weights_np)
+
+        self.valid_weights_normalize = []
+        for weights in self.valid_weights:
+            weights_np = np.array(weights)
+            weights_np /= weights_np.sum()
+            self.valid_weights_normalize.append(weights_np)
+
+    def load_example_weights(self):
+        if os.path.exists(self.train_weights_file):
+            file_data = np.load(self.train_weights_file, allow_pickle=True)
+            self.train_weights = file_data['data']
+
+    def update_weights(self, samples: List[Tuple[int, int]], losses: np.ndarray):
+        for i in range(len(samples)):
+            error_delta = losses[i][0] ** 2
+            example_group = samples[i][0]
+            example_index = samples[i][1]
+
+            self.train_weights[example_group][example_index] = error_delta
+
+    def update_weights_by_model(self, model: Model):
+        print('Start update_weights_by_model')
+        train_examples_count = 0
+        for i in range(len(self.train)):
+            train_examples_count += len(self.train[i])
+
+        batch_size_saved = self.train_batch_size
+        self.train_batch_size = train_examples_count // 100
+
+        (t_images_1, t_images_2, t_results, indexes) = self.get_batch_train()
+
+        self.update_weights(indexes, model.predict(x=[t_images_1, t_images_2]))
+
+        self.train_batch_size = batch_size_saved
+        self.init_weight_normalize()
+        print('Finish update_weights_by_model')
+
+    def save_example_weights(self):
+        print('Saving example weights')
+        np.savez(self.train_weights_file, data=self.train_weights)
+        print('Example weights are saved')
 
 
 def get_experimental_dataset(use_train: bool):

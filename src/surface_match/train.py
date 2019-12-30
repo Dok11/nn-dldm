@@ -51,7 +51,10 @@ def write_log(callback_fn, names, current_logs, batch_no):
 # ----------------------------------------------------------------------------
 
 batch_generator = BatchGenerator()
-batch_generator.load_hard_examples()
+batch_generator.default_weight = 0.06 ** 2
+batch_generator.init_weights()
+batch_generator.load_example_weights()
+batch_generator.init_weight_normalize()
 
 # train
 start_batch = 0
@@ -64,7 +67,7 @@ for batch_index in range(50000001):
     sum_logs.append(logs)
 
     if batch % 200 == 0 and batch > 0:
-        # check model on the validation data
+        # Check model on the validation data
         (v_images_1, v_images_2, v_results, indexes) = batch_generator.get_batch_valid()
         v_loss = model.test_on_batch(x=[v_images_1, v_images_2], y=v_results)
 
@@ -77,3 +80,8 @@ for batch_index in range(50000001):
 
     if batch % 5000 == 0 and batch > 0:
         save_models(model)
+
+    if batch % 5000 == 0 and batch > 0:
+        batch_generator.update_weights_by_model(model)
+        batch_generator.save_example_weights()
+        batch_generator.init_weight_normalize()
