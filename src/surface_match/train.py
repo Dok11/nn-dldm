@@ -82,6 +82,7 @@ for batch_index in range(50000001):
         save_models(model)
 
     if batch % 5000 == 0 and batch > 0:
+        # Update weights complexity
         batch_generator.update_weights_by_model(model)
         batch_generator.save_example_weights()
         batch_generator.init_weight_normalize()
