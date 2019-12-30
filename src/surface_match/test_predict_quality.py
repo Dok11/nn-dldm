@@ -19,6 +19,7 @@ model.summary()
 save_images = False
 
 batch_generator = BatchGenerator()
+batch_generator.default_weight = 0.06 ** 2
 batch_generator.train_batch_size = batch_size
 batch_generator.init_weights()
 batch_generator.init_weight_normalize()
@@ -26,9 +27,12 @@ batch_generator.init_weight_normalize()
 hard_indexes = []
 test_batches = int(2 * train_examples / batch_generator.train_batch_size)
 
+samples = []
+
 for batch in range(test_batches):
     (t_images_1, t_images_2, t_results, indexes) = batch_generator.get_batch_train()
     result = model.predict(x=[t_images_1, t_images_2])
+    samples.append((indexes, result, t_results))
 
     for index in range(batch_size):
         real_result = t_results[index]
@@ -52,6 +56,14 @@ for batch in range(test_batches):
 
                 save_img('bad_predictions/' + root_name, t_images_1[index])
                 save_img('bad_predictions/' + target_name, t_images_2[index])
+
+# Update weight complexity
+batch_generator.load_example_weights()
+
+for sample in samples:
+    batch_generator.update_weights(sample[0], sample[1], sample[2])
+
+batch_generator.save_example_weights()
 
 
 print('Start save unique values from ' + str(len(hard_indexes)))
