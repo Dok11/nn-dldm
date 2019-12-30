@@ -97,8 +97,6 @@ class BatchGenerator:
         return self.get_batch(data_groups, self.train_weights)
 
     def get_group_examples(self, group_index, group, weights):
-        # https://github.com/numpy/numpy/issues/4188
-        # https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.multinomial.html
         group_samples_indexes = np.random.choice(len(group), self.samples_per_group, p=weights)
 
         group_indexes = []
@@ -153,26 +151,29 @@ class BatchGenerator:
             file_data = np.load(self.train_weights_file, allow_pickle=True)
             self.train_weights = file_data['data']
 
-    def update_weights(self, samples: List[Tuple[int, int]], losses: np.ndarray):
+    def update_weights(self, samples: List[Tuple[int, int]], predicted: np.ndarray, real_results: List[float]):
         for i in range(len(samples)):
-            error_delta = losses[i][0] ** 2
+            predicted_value = predicted[i][0]
+            error_delta = real_results[i] - predicted_value
+            error_delta_sq = np.round(error_delta ** 2, 12)
+
             example_group = samples[i][0]
             example_index = samples[i][1]
 
-            self.train_weights[example_group][example_index] = error_delta
+            self.train_weights[example_group][example_index] = error_delta_sq
 
-    def update_weights_by_model(self, model: Model):
+    def update_weights_by_model(self, model: Model, part=0.01):
         print('Start update_weights_by_model')
         train_examples_count = 0
         for i in range(len(self.train)):
             train_examples_count += len(self.train[i])
 
         batch_size_saved = self.train_batch_size
-        self.train_batch_size = train_examples_count // 100
+        self.train_batch_size = int(train_examples_count * part)
 
         (t_images_1, t_images_2, t_results, indexes) = self.get_batch_train()
 
-        self.update_weights(indexes, model.predict(x=[t_images_1, t_images_2]))
+        self.update_weights(indexes, model.predict(x=[t_images_1, t_images_2]), t_results)
 
         self.train_batch_size = batch_size_saved
         self.init_weight_normalize()
