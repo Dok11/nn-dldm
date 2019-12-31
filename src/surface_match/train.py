@@ -9,7 +9,7 @@ from surface_match.config import CURRENT_DIR, SAVED_MODEL_W
 from surface_match.dataset import BatchGenerator
 from surface_match.model import get_model, save_models
 
-seed = 9
+seed = 7
 np.random.seed(seed)
 tf.random.set_random_seed(seed)
 
@@ -78,11 +78,10 @@ for batch_index in range(50000001):
         write_log(callback, ['train_loss'], avg_logs, batch)
         write_log(callback, ['val_loss'], v_loss, batch)
 
-    if batch % 5000 == 0 and batch > 0:
-        save_models(model)
-
-    if batch % 5000 == 0 and batch > 0:
+    if batch % 1000 == 0 and batch > 0:
         # Update weights complexity
         batch_generator.update_weights_by_model(model)
+
+    if batch % 5000 == 0 and batch > 0:
+        save_models(model)
         batch_generator.save_example_weights()
-        batch_generator.init_weight_normalize()
