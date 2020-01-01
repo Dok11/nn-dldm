@@ -4,6 +4,8 @@ import re
 
 import numpy as np
 from keras_preprocessing.image import load_img, img_to_array
+from tensorflow.python.keras.utils import Progbar
+
 from surface_match.config import GROUP_COUNT, SIZE_Y, SIZE_X, CHANNELS
 
 # ============================================================================
@@ -56,6 +58,7 @@ class DataCollector:
 
         # List of path to real images
         self.images_dict = []
+        self.images_dict_flip = []
 
         # List of real images in Numpy Array format (size_x, size_y, channels)
         self.images_np_arr = []
@@ -89,6 +92,7 @@ class DataCollector:
 
     def set_images(self):
         self.images_dict = []
+        self.images_dict_flip = []
         self.images_np_arr = []
 
         # Collect image witch we need to use
@@ -102,8 +106,12 @@ class DataCollector:
                     image_path = os.path.join(source['images_real'], folder, file)
                     image_np_arr = get_image_as_np_array(image_path)
 
-                    self.images_dict.append(image_path)
+                    partial_path = re.sub(r'.+surface_match(.+)', r'\1', image_path)
+
+                    self.images_dict.append(partial_path)
                     self.images_np_arr.append(image_np_arr)
+
+        self.images_dict_flip = {self.images_dict[i]: i for i in range(0, len(self.images_dict))}
 
     def set_examples(self):
         # List of (index root image, index target image, cross value)
@@ -111,28 +119,32 @@ class DataCollector:
         self.examples = []
 
         for source in self.data_sources:
+            print('Start set_examples from ' + source['code'])
+
+            progress_bar = Progbar(len(source['surface_match_data']))
+
             for item in source['surface_match_data']:
-                image_root = self.get_image_by_regex('scene.*' + str(item['scene']) + '\\\.*' + str(item['root']) + '\.')
-                image_frame = self.get_image_by_regex('scene.*' + str(item['scene']) + '\\\.*' + str(item['frame']) + '\.')
+                root_frame_num = str(item['root']).zfill(4)
+                image_root_path = '\\' + source['code'] + '_images\\real\\scene-' + str(item['scene']) + '\\' + root_frame_num + '.jpg'
+                image_root_index = self.images_dict_flip[image_root_path]
 
-                self.examples.append((image_root, image_frame, item['value']))
+                target_frame_num = str(item['frame']).zfill(4)
+                image_target_path = '\\' + source['code'] + '_images\\real\\scene-' + str(item['scene']) + '\\' + target_frame_num + '.jpg'
+                image_target_index = self.images_dict_flip[image_target_path]
 
-    def get_image_by_regex(self, regex):
-        for image_key in range(len(self.images_dict)):
-            image = self.images_dict[image_key]
-            match = re.search(regex, image)
-
-            if match:
-                return image_key
+                self.examples.append((image_root_index, image_target_index, item['value']))
+                progress_bar.add(1)
 
     def set_grouped_examples(self):
         self.grouped_examples = [[] for i in range(GROUP_COUNT)]
 
+        progress_bar = Progbar(len(self.examples))
+
         for example in self.examples:
             example_value = example[2]
             group = round(example_value * (GROUP_COUNT - 1))
-            print(example, group)
             self.grouped_examples[group].append(example)
+            progress_bar.add(1)
 
     def set_data(self):
         data_train = [[] for i in range(GROUP_COUNT)]
