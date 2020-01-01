@@ -18,9 +18,16 @@ DATASET = {
         'surface_match_file': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'archviz.json'),
         'surface_match_data': [],
     },
+    'simple': {
+        'code': 'simple',
+        'images_real': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'simple_images', 'real'),
+        'surface_match_file': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'simple.json'),
+        'surface_match_data': [],
+    },
 }
 DATA_SOURCES = [
     DATASET['archviz'],
+    DATASET['simple'],
 ]
 VALIDATION_PART = 0.2
 
@@ -60,19 +67,19 @@ class DataCollector:
         self.grouped_examples = []
 
         # ACTIONS:
-        # Load data from json file which generated from Blender file
+        print('Load data from json file which generated from Blender file')
         self.load_json_data()
 
-        # Save all uses images as numpy array uint8
+        print('Save all uses images as numpy array uint8')
         self.set_images()
 
-        # Set examples for dataset file
+        print('Set examples for dataset file')
         self.set_examples()
 
-        # Divide examples by distribution int the 10 groups
+        print('Divide examples by distribution int the 10 groups')
         self.set_grouped_examples()
 
-        # Collect dataset and save into npz file
+        print('Collect dataset and save into npz file')
         self.set_data()
 
     def load_json_data(self):

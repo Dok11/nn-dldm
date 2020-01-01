@@ -32,10 +32,16 @@ DATASET = {
         'images_dir': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'archviz_images', 'cross'),
         'images_per_root': 800,
     },
+    'simple': {
+        'code': 'simple',
+        'images_dir': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'simple_images', 'cross'),
+        'images_per_root': 500,
+    },
 }
 
 DATA_SOURCES = [
     DATASET['archviz'],
+    DATASET['simple'],
 ]
 
 
