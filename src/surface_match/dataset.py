@@ -97,7 +97,10 @@ class BatchGenerator:
         return self.get_batch(data_groups, self.train_weights)
 
     def get_group_examples(self, group_index, group, weights):
-        group_samples_indexes = np.random.choice(len(group), self.samples_per_group, p=weights)
+        if len(weights) == len(group):
+            group_samples_indexes = np.random.choice(len(group), self.samples_per_group, p=weights)
+        else:
+            group_samples_indexes = np.random.choice(len(group), self.samples_per_group)
 
         group_indexes = []
         group_samples = []
@@ -149,7 +152,14 @@ class BatchGenerator:
     def load_example_weights(self):
         if os.path.exists(self.train_weights_file):
             file_data = np.load(self.train_weights_file, allow_pickle=True)
-            self.train_weights = file_data['data']
+
+            loaded_train_weights = file_data['data']
+            loaded_train_weights_count = sum([len(listElem) for listElem in loaded_train_weights])
+
+            inited_train_weights_count = sum([len(listElem) for listElem in self.train_weights])
+
+            if loaded_train_weights_count == inited_train_weights_count:
+                self.train_weights = loaded_train_weights
 
     def update_weights(self, samples: List[Tuple[int, int]], predicted: np.ndarray, real_results: List[float]):
         for i in range(len(samples)):
