@@ -204,7 +204,7 @@ def get_experimental_dataset(use_train: bool):
     file_path = os.path.join(os.getcwd(), '..', '..', 'train-data', 'surface_match', file_name + '.npz')
     file_data = np.load(file_path, allow_pickle=True)
 
-    return file_data['images_1'], file_data['images_2'], file_data['results']
+    return file_data['images_1'], file_data['images_2'], file_data['results'], file_data['results']
 
 
 def get_dataset(x: int, y: int):
