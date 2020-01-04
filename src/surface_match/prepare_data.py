@@ -20,6 +20,12 @@ DATASET = {
         'surface_match_file': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'archviz.json'),
         'surface_match_data': [],
     },
+    'classroom': {
+        'code': 'classroom',
+        'images_real': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'classroom_images', 'real'),
+        'surface_match_file': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'classroom.json'),
+        'surface_match_data': [],
+    },
     'simple': {
         'code': 'simple',
         'images_real': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'simple_images', 'real'),
@@ -29,6 +35,7 @@ DATASET = {
 }
 DATA_SOURCES = [
     DATASET['archviz'],
+    DATASET['classroom'],
     DATASET['simple'],
 ]
 VALIDATION_PART = 0.2
