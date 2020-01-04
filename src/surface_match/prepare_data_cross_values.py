@@ -5,11 +5,13 @@ import re
 
 import numpy as np
 from PIL import Image
+from tensorflow.python.keras.utils import Progbar
 
 ######################################################################
 #
-# Script makes json-file with describe how many common surfaces
-# on the second image from first and have structure like this:
+# Script makes json-files (one per scene) with describe
+# how many common surfaces on the second image from first
+# and have structure like this:
 # [
 #   {
 #     'scene': 1,
@@ -23,13 +25,17 @@ from PIL import Image
 #
 ######################################################################
 
-
 CURRENT_DIR: str = os.getcwd()
 
 DATASET = {
     'archviz': {
         'code': 'archviz',
         'images_dir': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'archviz_images', 'cross'),
+        'images_per_root': 800,
+    },
+    'classroom': {
+        'code': 'classroom',
+        'images_dir': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'classroom_images', 'cross'),
         'images_per_root': 800,
     },
     'simple': {
@@ -41,6 +47,7 @@ DATASET = {
 
 DATA_SOURCES = [
     DATASET['archviz'],
+    DATASET['classroom'],
     DATASET['simple'],
 ]
 
@@ -59,7 +66,7 @@ class DatasetCollector:
         self.dataset = dataset
 
         # Path to json file with/for calculated data
-        self.filepath = os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', dataset['code'] + '.json')
+        self.file_path = os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', dataset['code'] + '.json')
 
         # Exist already calculated data
         self.data = []
@@ -76,8 +83,11 @@ class DatasetCollector:
         # List of exist image files
         self.image_files = []
 
-        # Calculate values for image
+        # ACTIONS:
+        print('Set initial values')
         self.calc_initial_values()
+
+        print('Calculate values for image')
         self.calc_values_for_images()
 
     def calc_initial_values(self):
@@ -98,8 +108,14 @@ class DatasetCollector:
 
     def calc_values_for_images(self):
         counter = 0
+        counter_all = 0
+        progress_bar = Progbar(len(self.image_files))
 
         for image_file in self.image_files:
+            counter_all += 1
+            if counter_all % 250 == 0:
+                progress_bar.add(250)
+
             scene = image_file['scene']
             root = image_file['root']
             frame = image_file['frame']
@@ -107,10 +123,10 @@ class DatasetCollector:
             image_desc = 'Scene: ' + str(scene) + '. Root: ' + str(root) + '. Frame: ' + str(frame)
 
             if self.is_image_calculated(image_file):
-                print('SKIP CALC FOR: ' + image_desc)
+                # print('SKIP CALC FOR: ' + image_desc)
                 continue
 
-            print('DO CALC FOR: ' + image_desc)
+            # print('DO CALC FOR: ' + image_desc)
 
             img = Image.open(path).convert('L')
             arr = np.array(img)
@@ -130,16 +146,16 @@ class DatasetCollector:
             counter += 1
 
             if counter % 5000 == 0 and counter > 0:
-                print('Save file partial with new records ' + str(counter))
+                print('\nSave file partial with new records ' + str(counter))
                 self.save_data()
 
         # Save data to json
-        print('Save file complete with new records ' + str(counter))
+        print('\nSave file complete with new records ' + str(counter))
         self.save_data()
 
     def set_exist_file_data(self):
-        if os.path.exists(self.filepath):
-            with open(self.filepath) as json_file:
+        if os.path.exists(self.file_path):
+            with open(self.file_path) as json_file:
                 self.data = json.load(json_file)
 
     def set_scenes(self):
@@ -204,7 +220,7 @@ class DatasetCollector:
         return False
 
     def save_data(self):
-        f = open(self.filepath, 'w', encoding='utf-8')
+        f = open(self.file_path, 'w', encoding='utf-8')
         json.dump(self.data, f, ensure_ascii=False, indent=2)
         f.close()
 
