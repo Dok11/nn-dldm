@@ -11,12 +11,13 @@ from surface_match.model import get_model
 
 batch_size = 1000
 train_examples = 1536000
-error_threshold = 0.21
+error_threshold = 0.1
+save_images = True
+save_images_error_threshold = 0.7
 
 model: Model = get_model()
 model.load_weights(SAVED_MODEL_W)
 model.summary()
-save_images = False
 
 batch_generator = BatchGenerator()
 batch_generator.default_weight = 0.06 ** 2
@@ -47,15 +48,15 @@ for batch in range(test_batches):
                 delta
             ])
 
-            if save_images:
-                r_val = 'r%.2f' % real_result
-                p_val = 'p%.2f' % predicted_result
+        if delta > save_images_error_threshold and save_images:
+            r_val = 'r%.2f' % real_result
+            p_val = 'p%.2f' % predicted_result
 
-                root_name = str(batch) + '-' + str(index) + '-root_' + p_val + 'vs' + r_val + '.jpg'
-                target_name = str(batch) + '-' + str(index) + '-target_' + p_val + 'vs' + r_val + '.jpg'
+            root_name = str(batch) + '-' + str(index) + '-root_' + p_val + 'vs' + r_val + '.jpg'
+            target_name = str(batch) + '-' + str(index) + '-target_' + p_val + 'vs' + r_val + '.jpg'
 
-                save_img('bad_predictions/' + root_name, t_images_1[index])
-                save_img('bad_predictions/' + target_name, t_images_2[index])
+            save_img('bad_predictions/' + root_name, t_images_1[index])
+            save_img('bad_predictions/' + target_name, t_images_2[index])
 
 # Update weight complexity
 batch_generator.load_example_weights()
