@@ -34,6 +34,8 @@ Currently status of this section — creation dataset.
 
 ### Useful links:
 - [Structure-from-motion using convolutional neural networks](http://jultika.oulu.fi/files/nbnfioulu-201809062760.pdf)
+- [ICPS-net: An End-to-End RGB-based Indoor Camera Positioning
+System using deep convolutional neural networks](https://arxiv.org/pdf/1910.06219.pdf)
 
 
 ## 2. Reconstruct camera positions or calculate camera deltas
