@@ -21,7 +21,7 @@ Work in progress but currently my plan includes this parts to realisation:
 
 Main purpose of this section is defining nearest images together for next step.  
 
-Scripts for trainig placed in the `/src/surface_match/`  
+Scripts for training placed in the `/src/surface_match/`  
 Dataset placed in the `/data/surface_match/`  
 Prepared data in npz file placed in the `/train_data/surface_match/`  
 Saved model and their weights placed in the `/models/surface_match/`  
