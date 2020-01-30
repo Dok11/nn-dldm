@@ -1,4 +1,3 @@
-import hashlib
 import json
 import os
 import re
@@ -13,15 +12,19 @@ from tensorflow.python.keras.utils import Progbar
 # how many common surfaces on the second image from first
 # and have structure like this:
 # [
-#   {
-#     'scene': 1,
-#     'root': '/path/to/image/root.png',
-#     'frame': '/path/to/image/frame.png',
-#     'value': 0
-#   }, ...
+#   [
+#     0: 1,
+#     1: '/path/to/image/root.png',
+#     2: '/path/to/image/frame.png',
+#     3: 0
+#   ], ...
 # ]
 #
-# Where value is number in range [0..1]
+# Where:
+# [0] - Scene
+# [1] - Root
+# [2] - Frame
+# [3] - Value. is number in range [0..1]
 #
 ######################################################################
 
@@ -52,13 +55,18 @@ DATA_SOURCES = [
 ]
 
 
-def get_hash_image(image):
-    string = 's' + str(image['scene']) + 'r' + str(image['root']) + 'f' + str(image['frame'])
-    return hashlib.md5(string.encode('utf-8')).hexdigest()
+def get_image_key_for_scene(image):
+    return str(image[0])
 
 
-def get_image_key(image):
-    return str(image['scene']) + '.' + str(image['root'])
+def get_image_key_for_root(image):
+    # Scene and root
+    return str(image[0]) + '.' + str(image[1])
+
+
+def get_image_key_for_image(image):
+    # Scene, root and frame
+    return 's' + str(image[0]) + 'r' + str(image[1]) + 'f' + str(image[2])
 
 
 class DatasetCollector:
@@ -71,11 +79,14 @@ class DatasetCollector:
         # Exist already calculated data
         self.data = []
 
-        # Hash list of exist data
-        self.hash_list = []
+        # List of completed scenes
+        self.completed_scenes = []
 
         # List of completed roots
         self.completed_roots = []
+
+        # List of completed images
+        self.completed_images = []
 
         # List of exist scene folders
         self.scenes = []
@@ -84,10 +95,7 @@ class DatasetCollector:
         self.image_files = []
 
         # ACTIONS:
-        print('Set initial values')
         self.calc_initial_values()
-
-        print('Calculate values for image')
         self.calc_values_for_images()
 
     def calc_initial_values(self):
@@ -100,52 +108,45 @@ class DatasetCollector:
         # Collect image files
         self.set_image_files()
 
-        # Define hash list for calculated images
-        self.set_hash_list()
-
-        # Define which root frames are fully calculated
+        # Define which scenes, root frames and images are fully calculated
+        self.set_completed_scenes()
         self.set_completed_roots()
+        self.set_completed_images()
 
     def calc_values_for_images(self):
+        print('Run calc_values_for_images()')
         counter = 0
-        counter_all = 0
-        progress_bar = Progbar(len(self.image_files))
+
+        # Progress bar for remain items to calculate
+        progress_bar = Progbar(len(self.image_files) - len(self.data))
 
         for image_file in self.image_files:
-            counter_all += 1
-            if counter_all % 250 == 0:
-                progress_bar.add(250)
-
             scene = image_file['scene']
             root = image_file['root']
             frame = image_file['frame']
             path = image_file['path']
-            image_desc = 'Scene: ' + str(scene) + '. Root: ' + str(root) + '. Frame: ' + str(frame)
+            image_file_data = (scene, root, frame)
 
-            if self.is_image_calculated(image_file):
-                # print('SKIP CALC FOR: ' + image_desc)
+            if self.is_image_calculated(image_file_data):
                 continue
 
-            # print('DO CALC FOR: ' + image_desc)
+            img = Image.open(path)
+            img.thumbnail((16, 16))
+            value = np.array(img).mean() / 255
 
-            img = Image.open(path).convert('L')
-            arr = np.array(img)
-            flatten_arr = [x for sublist in arr for x in sublist]
-
-            pixels = len(flatten_arr)
-            white_sum = sum(flatten_arr)
-            value = white_sum / 255 / pixels
-
-            self.data.append({
-                'scene': scene,
-                'root': root,
-                'frame': frame,
-                'value': round(value, 4),
-            })
+            self.data.append((
+                scene,
+                root,
+                frame,
+                round(value, 4),
+            ))
 
             counter += 1
 
-            if counter % 5000 == 0 and counter > 0:
+            if counter % 500 == 0:
+                progress_bar.add(500)
+
+            if counter % 25000 == 0 and counter > 0:
                 print('\nSave file partial with new records ' + str(counter))
                 self.save_data()
 
@@ -154,11 +155,15 @@ class DatasetCollector:
         self.save_data()
 
     def set_exist_file_data(self):
+        print('Run set_exist_file_data()')
         if os.path.exists(self.file_path):
             with open(self.file_path) as json_file:
                 self.data = json.load(json_file)
 
+        print('Exist data about ' + str(len(self.data)) + ' files\n')
+
     def set_scenes(self):
+        print('Run set_scenes()')
         self.scenes = []
         folders = os.listdir(self.dataset['images_dir'])
 
@@ -166,7 +171,10 @@ class DatasetCollector:
             if os.path.isdir(os.path.join(self.dataset['images_dir'], folder)):
                 self.scenes.append(folder)
 
+        print('Define ' + str(len(self.scenes)) + ' scenes\n')
+
     def set_image_files(self):
+        print('Run set_image_files()')
         self.image_files = []
 
         for scene in self.scenes:
@@ -185,19 +193,36 @@ class DatasetCollector:
                         'frame': int(match[0][1]),
                     })
 
-    def set_hash_list(self):
-        self.hash_list = []
+        print('Define data about ' + str(len(self.image_files)) + ' images\n')
 
-        for image in self.data:
-            self.hash_list.append(get_hash_image(image))
+    def set_completed_scenes(self):
+        print('Run set_completed_scenes()')
+        self.completed_scenes = []
+
+        scene_frames_counter = {}
+
+        for item in self.data:
+            key = get_image_key_for_scene(item)
+
+            try:
+                scene_frames_counter[key] += 1
+            except KeyError:
+                scene_frames_counter[key] = 1
+
+        for key in list(scene_frames_counter.keys()):
+            if scene_frames_counter[key] == self.dataset['images_per_root'] ** 2:
+                self.completed_scenes.append(key)
+
+        print('Define ' + str(len(self.completed_scenes)) + ' completed scenes\n')
 
     def set_completed_roots(self):
+        print('Run set_completed_roots()')
         self.completed_roots = []
 
         root_frames_counter = {}
 
         for item in self.data:
-            key = get_image_key(item)
+            key = get_image_key_for_root(item)
 
             try:
                 root_frames_counter[key] += 1
@@ -208,20 +233,35 @@ class DatasetCollector:
             if root_frames_counter[key] == self.dataset['images_per_root']:
                 self.completed_roots.append(key)
 
+        print('Define ' + str(len(self.completed_roots)) + ' completed roots\n')
+
+    def set_completed_images(self):
+        print('Run set_completed_images()')
+        self.completed_images = []
+
+        for image in self.data:
+            self.completed_images.append(get_image_key_for_image(image))
+
+        print('Define completed images count ' + str(len(self.completed_images)) + '\n')
+
     def is_image_calculated(self, image):
+        # Check whole calculated scenes
+        if get_image_key_for_scene(image) in self.completed_scenes:
+            return True
+
         # Check whole calculated roots
-        if get_image_key(image) in self.completed_roots:
+        if get_image_key_for_root(image) in self.completed_roots:
             return True
 
         # Check image file personality
-        if get_hash_image(image) in self.hash_list:
+        if get_image_key_for_image(image) in self.completed_images:
             return True
 
         return False
 
     def save_data(self):
         f = open(self.file_path, 'w', encoding='utf-8')
-        json.dump(self.data, f, ensure_ascii=False, indent=2)
+        json.dump(self.data, f, ensure_ascii=False, indent=0, check_circular=False)
         f.close()
 
 
