@@ -56,7 +56,7 @@ DATA_SOURCES = [
 
 
 def get_image_key_for_scene(image):
-    return str(image[0])
+    return image[0]
 
 
 def get_image_key_for_root(image):
@@ -66,7 +66,7 @@ def get_image_key_for_root(image):
 
 def get_image_key_for_image(image):
     # Scene, root and frame
-    return 's' + str(image[0]) + 'r' + str(image[1]) + 'f' + str(image[2])
+    return str(image[0]) + 'r' + str(image[1]) + 'f' + str(image[2])
 
 
 class DatasetCollector:
@@ -117,36 +117,38 @@ class DatasetCollector:
         print('Run calc_values_for_images()')
         counter = 0
 
-        # Progress bar for remain items to calculate
-        progress_bar = Progbar(len(self.image_files) - len(self.data))
+        remain_images_to_calc = []
 
         for image_file in self.image_files:
-            scene = image_file['scene']
-            root = image_file['root']
-            frame = image_file['frame']
-            path = image_file['path']
-            image_file_data = (scene, root, frame)
-
+            image_file_data = (image_file['scene'], image_file['root'], image_file['frame'])
             if self.is_image_calculated(image_file_data):
                 continue
 
-            img = Image.open(path)
+            remain_images_to_calc.append(image_file)
+
+        print('remain images to calc: ' + str(len(remain_images_to_calc)))
+
+        # Progress bar for remain items to calculate
+        progress_bar = Progbar(len(remain_images_to_calc))
+
+        for image_file in remain_images_to_calc:
+            img = Image.open(image_file['path'])
             img.thumbnail((16, 16))
             value = np.array(img).mean() / 255
 
             self.data.append((
-                scene,
-                root,
-                frame,
+                image_file['scene'],
+                image_file['root'],
+                image_file['frame'],
                 round(value, 4),
             ))
 
             counter += 1
 
-            if counter % 500 == 0:
-                progress_bar.add(500)
+            if counter % 5000 == 0:
+                progress_bar.add(5000)
 
-            if counter % 25000 == 0 and counter > 0:
+            if counter % 1000000 == 0 and counter > 0:
                 print('\nSave file partial with new records ' + str(counter))
                 self.save_data()
 
@@ -213,6 +215,8 @@ class DatasetCollector:
             if scene_frames_counter[key] == self.dataset['images_per_root'] ** 2:
                 self.completed_scenes.append(key)
 
+        self.completed_scenes = set(self.completed_scenes)
+
         print('Define ' + str(len(self.completed_scenes)) + ' completed scenes\n')
 
     def set_completed_roots(self):
@@ -233,6 +237,8 @@ class DatasetCollector:
             if root_frames_counter[key] == self.dataset['images_per_root']:
                 self.completed_roots.append(key)
 
+        self.completed_roots = set(self.completed_roots)
+
         print('Define ' + str(len(self.completed_roots)) + ' completed roots\n')
 
     def set_completed_images(self):
@@ -241,6 +247,8 @@ class DatasetCollector:
 
         for image in self.data:
             self.completed_images.append(get_image_key_for_image(image))
+
+        self.completed_images = set(self.completed_images)
 
         print('Define completed images count ' + str(len(self.completed_images)) + '\n')
 
