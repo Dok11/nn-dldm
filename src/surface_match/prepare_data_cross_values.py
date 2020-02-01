@@ -36,6 +36,11 @@ DATASET = {
         'images_dir': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'archviz_images', 'cross'),
         'images_per_root': 800,
     },
+    'barbershop': {
+        'code': 'barbershop',
+        'images_dir': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'barbershop_images', 'cross'),
+        'images_per_root': 800,
+    },
     'classroom': {
         'code': 'classroom',
         'images_dir': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'classroom_images', 'cross'),
@@ -50,6 +55,7 @@ DATASET = {
 
 DATA_SOURCES = [
     DATASET['archviz'],
+    DATASET['barbershop'],
     DATASET['classroom'],
     DATASET['simple'],
 ]

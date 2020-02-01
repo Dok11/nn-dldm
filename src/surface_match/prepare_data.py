@@ -20,6 +20,12 @@ DATASET = {
         'surface_match_file': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'archviz.json'),
         'surface_match_data': [],
     },
+    'barbershop': {
+        'code': 'barbershop',
+        'images_real': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'barbershop_images', 'real'),
+        'surface_match_file': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'barbershop.json'),
+        'surface_match_data': [],
+    },
     'classroom': {
         'code': 'classroom',
         'images_real': os.path.join(CURRENT_DIR, '..', '..', 'data', 'surface_match', 'classroom_images', 'real'),
@@ -35,6 +41,7 @@ DATASET = {
 }
 DATA_SOURCES = [
     DATASET['archviz'],
+    DATASET['barbershop'],
     DATASET['classroom'],
     DATASET['simple'],
 ]
@@ -131,15 +138,15 @@ class DataCollector:
             progress_bar = Progbar(len(source['surface_match_data']))
 
             for item in source['surface_match_data']:
-                root_frame_num = str(item['root']).zfill(4)
-                image_root_path = '\\' + source['code'] + '_images\\real\\scene-' + str(item['scene']) + '\\' + root_frame_num + '.jpg'
+                root_frame_num = str(item[1]).zfill(4)
+                image_root_path = '\\' + source['code'] + '_images\\real\\scene-' + str(item[0]) + '\\' + root_frame_num + '.jpg'
                 image_root_index = self.images_dict_flip[image_root_path]
 
-                target_frame_num = str(item['frame']).zfill(4)
-                image_target_path = '\\' + source['code'] + '_images\\real\\scene-' + str(item['scene']) + '\\' + target_frame_num + '.jpg'
+                target_frame_num = str(item[2]).zfill(4)
+                image_target_path = '\\' + source['code'] + '_images\\real\\scene-' + str(item[0]) + '\\' + target_frame_num + '.jpg'
                 image_target_index = self.images_dict_flip[image_target_path]
 
-                self.examples.append((image_root_index, image_target_index, item['value']))
+                self.examples.append((image_root_index, image_target_index, item[3]))
                 progress_bar.add(1)
 
     def set_grouped_examples(self):
