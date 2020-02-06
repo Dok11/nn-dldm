@@ -14,7 +14,7 @@ def save(file_name: str, x1: list, x2: list, y: list, indexes: list):
 
 
 batch_generator = BatchGenerator()
-batch_generator.train_batch_size = 50
+batch_generator.load_dataset()
 batch_generator.init_weights()
 batch_generator.init_weight_normalize()
 
