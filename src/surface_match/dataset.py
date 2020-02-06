@@ -5,7 +5,6 @@ from typing import List, Tuple
 
 import numpy as np
 import tensorflow as tf
-from albumentations import Compose, RandomBrightnessContrast
 from tensorflow.python.keras import Model
 from tensorflow.python.keras.preprocessing.image import save_img
 
@@ -35,9 +34,6 @@ class BatchGenerator:
         self.default_weight: float = 0.5
 
         self.train_weights_file = os.path.join(os.getcwd(), '..', '..', 'models', 'surface_match', 'train_weights.npz')
-
-        self.load_dataset()
-        self.init_weights()
 
     def load_dataset(self):
         (self.train, self.valid, self.images) = get_dataset(SIZE_X, SIZE_Y)
@@ -111,8 +107,8 @@ class BatchGenerator:
 
         group_images_1_idx = column(group_samples, 0)
         group_images_2_idx = column(group_samples, 1)
-        group_images_1 = self.images[group_images_1_idx.astype(int)]
-        group_images_2 = self.images[group_images_2_idx.astype(int)]
+        group_images_1 = self.images[group_images_1_idx] / 255.
+        group_images_2 = self.images[group_images_2_idx] / 255.
         group_results = column(group_samples, 2)
 
         return group_images_1, group_images_2, group_results, group_indexes
@@ -208,26 +204,20 @@ def get_experimental_dataset(use_train: bool):
 
 
 def get_dataset(x: int, y: int):
-    dir = os.path.dirname(os.path.abspath(__file__))
+    directory = os.path.dirname(os.path.abspath(__file__))
     file_name = 'data_' + str(x) + 'x' + str(y) + '.npz'
-    file_path = os.path.join(dir, '..', '..', 'train-data', 'surface_match', file_name)
+    file_path = os.path.join(directory, '..', '..', 'train-data', 'surface_match', file_name)
     file_data = np.load(file_path, allow_pickle=True)
 
     return (
         file_data['train'],
         file_data['valid'],
-        np.array(file_data['images']) / 255.,
+        np.array(file_data['images']),
     )
 
 
 def save_image(data, name):
     save_img(name, data)
-
-
-def aug(p=0.5):
-    return Compose([
-        RandomBrightnessContrast(),
-    ], p=p)
 
 
 def loss_in_fact(y_true, y_pred):
