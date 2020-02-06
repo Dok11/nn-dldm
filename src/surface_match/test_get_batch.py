@@ -3,6 +3,7 @@ import time
 from surface_match.dataset import BatchGenerator
 
 batch_generator = BatchGenerator()
+batch_generator.load_dataset()
 batch_generator.init_weights()
 batch_generator.load_example_weights()
 batch_generator.init_weight_normalize()
