@@ -29,16 +29,17 @@ def get_model(use_model) -> Model:
     merged_layers = concatenate([branch_a, branch_b])
     merged_layers = GlobalAveragePooling2D()(merged_layers)
 
-    merged_layers = Dense(1024, activation='selu')(merged_layers)
+    merged_layers = Dense(256, activation='relu')(merged_layers)
+    merged_layers = Dropout(0.1)(merged_layers)
+
+    merged_layers = Dense(256, activation='relu')(merged_layers)
     merged_layers = Dropout(0.0)(merged_layers)
 
-    merged_layers = Dense(1024, activation='selu')(merged_layers)
-    merged_layers = Dropout(0.0)(merged_layers)
-
-    output = Dense(1, kernel_initializer='normal', activation='selu')(merged_layers)
+    output = Dense(1, kernel_initializer='normal', activation='linear')(merged_layers)
     model = Model(inputs=[image_a, image_b], outputs=output)
-    model.compile(optimizer=tf.keras.optimizers.Adam(0.00005),
-                  loss='mae',
+
+    model.compile(optimizer=tf.keras.optimizers.Adam(0.00100),
+                  loss='mse',
                   metrics=[loss_in_fact])
 
     return model
