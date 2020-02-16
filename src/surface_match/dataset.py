@@ -26,17 +26,19 @@ class BatchGenerator:
         self.valid_weights_normalize: List[np.ndarray] = []
 
         self.hard_examples: List = []
+        self.use_hard_examples = False
         self.images: np.ndarray = np.array([])
 
         self.train_batch_size: int = 160
         self.valid_batch_size: int = 300
         self.samples_per_group: int = self.train_batch_size // GROUP_COUNT
         self.default_weight: float = 0.5
+        self.train_dir = os.path.join(CURRENT_DIR, '..', '..', 'train-data', 'surface_match')
 
         self.train_weights_file = os.path.join(os.getcwd(), '..', '..', 'models', 'surface_match', 'train_weights.npz')
 
     def load_dataset(self):
-        (self.train, self.valid, self.images) = get_dataset(SIZE_X, SIZE_Y)
+        (self.train, self.valid, self.images) = self.get_dataset(SIZE_X, SIZE_Y)
 
     def load_hard_examples(self):
         path = os.path.join(CURRENT_DIR, 'hard_indexes.json')
@@ -61,8 +63,13 @@ class BatchGenerator:
         indexes = []
 
         for group_index in range(GROUP_COUNT):
+            if self.use_hard_examples:
+                group_weights = weights[group_index]
+            else:
+                group_weights = []
+
             (group_images_1, group_images_2, group_results, group_indexes) =\
-                self.get_group_examples(group_index, data_groups[group_index], weights[group_index])
+                self.get_group_examples(group_index, data_groups[group_index], group_weights)
 
             images_1.extend(group_images_1)
             images_2.extend(group_images_2)
@@ -93,7 +100,7 @@ class BatchGenerator:
         return self.get_batch(data_groups, self.train_weights)
 
     def get_group_examples(self, group_index, group, weights):
-        if len(weights) == len(group):
+        if self.use_hard_examples and len(weights) == len(group):
             group_samples_indexes = np.random.choice(len(group), self.samples_per_group, p=weights)
         else:
             group_samples_indexes = np.random.choice(len(group), self.samples_per_group)
@@ -114,6 +121,8 @@ class BatchGenerator:
         return group_images_1, group_images_2, group_results, group_indexes
 
     def init_weights(self):
+        self.use_hard_examples = True
+
         # Train weights
         self.train_weights = []
 
@@ -185,6 +194,22 @@ class BatchGenerator:
         self.init_weight_normalize()
         print('Finish update_weights_by_model')
 
+    def get_dataset(self, x: int, y: int):
+        file_path = os.path.join(self.train_dir, 'data_' + str(x) + 'x' + str(y) + '.npz')
+        file_data = np.load(file_path, allow_pickle=True)
+
+        return file_data['train'], file_data['valid'], file_data['images']
+
+    def load_images(self, idx):
+        loaded_images = []
+
+        for image_num in idx:
+            file_path = os.path.join(self.train_dir, 'images', str(image_num) + '.npz')
+            file_data = np.load(file_path)
+            loaded_images.append(file_data['arr_0'])
+
+        return loaded_images
+
     def save_example_weights(self):
         print('Saving example weights')
         np.savez(self.train_weights_file, data=self.train_weights)
@@ -200,20 +225,7 @@ def get_experimental_dataset(use_train: bool):
     file_path = os.path.join(os.getcwd(), '..', '..', 'train-data', 'surface_match', file_name + '.npz')
     file_data = np.load(file_path, allow_pickle=True)
 
-    return file_data['images_1'], file_data['images_2'], file_data['results'], file_data['results']
-
-
-def get_dataset(x: int, y: int):
-    directory = os.path.dirname(os.path.abspath(__file__))
-    file_name = 'data_' + str(x) + 'x' + str(y) + '.npz'
-    file_path = os.path.join(directory, '..', '..', 'train-data', 'surface_match', file_name)
-    file_data = np.load(file_path, allow_pickle=True)
-
-    return (
-        file_data['train'],
-        file_data['valid'],
-        np.array(file_data['images']),
-    )
+    return file_data['images_1'], file_data['images_2'], file_data['results'], range(len(file_data['results']))
 
 
 def save_image(data, name):
