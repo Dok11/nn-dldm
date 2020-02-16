@@ -3,4 +3,3 @@ tensorflow-gpu==1.15.0
 numpy==1.17.3
 pillow==6.2.1
 tensorboard==1.14.0
-albumentations==0.4.3
