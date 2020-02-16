@@ -4,6 +4,7 @@ import re
 
 import numpy as np
 from keras_preprocessing.image import load_img, img_to_array
+from tensorflow.python.keras.preprocessing.image import save_img
 from tensorflow.python.keras.utils import Progbar
 
 from surface_match.config import GROUP_COUNT, SIZE_Y, SIZE_X, CHANNELS
@@ -83,6 +84,9 @@ class DataCollector:
         # List of grouped examples by 10 groups
         self.grouped_examples = []
 
+        # Directory for saving dataset file
+        self.train_dir = os.path.join(CURRENT_DIR, '..', '..', 'train-data', 'surface_match')
+
         # ACTIONS:
         print('Load data from json file which generated from Blender file')
         self.load_json_data()
@@ -97,7 +101,10 @@ class DataCollector:
         self.set_grouped_examples()
 
         print('Collect dataset and save into npz file')
-        self.set_data()
+        self.save_data()
+
+        print('Start saving images one by one')
+        self.save_img()
 
     def load_json_data(self):
         for sources in self.data_sources:
@@ -160,7 +167,7 @@ class DataCollector:
             self.grouped_examples[group].append(example)
             progress_bar.add(1)
 
-    def set_data(self):
+    def save_data(self):
         data_train = [[] for i in range(GROUP_COUNT)]
         data_valid = [[] for i in range(GROUP_COUNT)]
 
@@ -175,13 +182,25 @@ class DataCollector:
                 else:
                     data_valid[group_index].append(example)
 
-        train_dir = os.path.join(CURRENT_DIR, '..', '..', 'train-data', 'surface_match')
+        if not (os.path.isdir(self.train_dir)):
+            os.mkdir(self.train_dir)
 
-        if not (os.path.isdir(train_dir)):
-            os.mkdir(train_dir)
+        file = os.path.join(self.train_dir, 'data_' + str(SIZE_X) + 'x' + str(SIZE_Y))
+        np.savez_compressed(file,
+                            train=data_train,
+                            valid=data_valid,
+                            images=self.images_np_arr)
 
-        file = os.path.join(train_dir, 'data_' + str(SIZE_X) + 'x' + str(SIZE_Y))
-        np.savez(file, train=data_train, valid=data_valid, images=self.images_np_arr)
+    def save_img(self):
+        progress_bar = Progbar(len(self.images_np_arr))
+
+        for i in range(len(self.images_np_arr)):
+            image = self.images_np_arr[i].astype('float32') / 255.
+            file = os.path.join(self.train_dir, 'images', str(i))
+            save_img(file + '.png', image)
+
+            if i % 100 == 0:
+                progress_bar.add(100)
 
 
 if __name__ == '__main__':
