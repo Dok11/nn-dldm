@@ -65,8 +65,8 @@ class ExternalRender:
         self.render()
 
     def closed_range(self, start, stop, step=1):
-        dir = 1 if (step > 0) else -1
-        return range(start, stop + dir, step)
+        direction = 1 if (step > 0) else -1
+        return range(start, stop + direction, step)
 
     def setup_render_params(self, root_frame, frame):
         bpy.context.scene.frame_set(root_frame)
@@ -109,6 +109,8 @@ class ExternalRender:
 
         for image in self.exist_images:
             self.hash_list.append(get_hash_image(image))
+
+        self.hash_list = set(self.hash_list)
 
     def find_image_in_hash_list(self, image):
         if get_hash_image(image) in self.hash_list:
