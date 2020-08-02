@@ -4,9 +4,15 @@ import re
 
 import numpy as np
 import pkbar
-from skimage import io, img_as_ubyte
+from skimage import io
 
 from surface_match.config import GROUP_COUNT, SIZE_Y, SIZE_X
+
+"""
+Script makes npz-file with all data about examples
+and images as array width keys `data` and `images`
+"""
+
 
 # ============================================================================
 # --- GLOBAL PARAMS ----------------------------------------------------------
@@ -55,24 +61,28 @@ def get_image_as_np_array(path):
 class DataCollector:
     def __init__(self, data_sources):
         # PROPERTIES:
-        # Information about sources for dataset
+
         self.data_sources = data_sources
+        """Information about sources for dataset"""
 
-        # List of path to real images
         self.images_dict = []
+        """List of path to real images"""
+
         self.images_dict_flip = []
+        """Flipped key->value of `self.images_dict`"""
 
-        # List of real images in Numpy Array format (size_x, size_y, channels)
         self.images_np_arr = []
+        """List of real images in Numpy Array format (size_x, size_y, channels)"""
 
-        # List of examples for dataset
         self.examples = []
+        """List of samples for dataset (index root image, index target image, cross value)
+        where `index` is index of image in the `self.images_dict`"""
 
-        # List of grouped examples by 10 groups
         self.grouped_examples = []
+        """List of grouped examples by 10 groups"""
 
-        # Directory for saving dataset file
         self.train_dir = os.path.join(CURRENT_DIR, '..', '..', 'train-data', 'surface_match')
+        """Directory for saving dataset file"""
 
         # ACTIONS:
         print('\nLoad data from json file which generated from Blender file')
@@ -90,15 +100,17 @@ class DataCollector:
         print('\nCollect dataset and save into npz file')
         self.save_data()
 
-        print('Start saving images one by one')
-        self.save_img()
-
     def load_json_data(self):
         for sources in self.data_sources:
             with open(sources['surface_match_file'], 'r') as read_file:
                 sources['surface_match_data'] = json.load(read_file)
 
     def set_images(self):
+        """
+        Function load content of image files
+        into self.images_dict
+        and self.images_dict_flip
+        """
         self.images_dict = []
         self.images_dict_flip = []
         self.images_np_arr = []
@@ -112,18 +124,16 @@ class DataCollector:
 
                 for file in files:
                     image_path = os.path.join(source['images_real'], folder, file)
-                    image_np_arr = get_image_as_np_array(image_path)
+                    # image_np_arr = get_image_as_np_array(image_path)
 
                     partial_path = re.sub(r'.+surface_match(.+)', r'\1', image_path)
 
                     self.images_dict.append(partial_path)
-                    self.images_np_arr.append(image_np_arr)
+                    # self.images_np_arr.append(image_np_arr)
 
         self.images_dict_flip = {self.images_dict[i]: i for i in range(0, len(self.images_dict))}
 
     def set_examples(self):
-        # List of (index root image, index target image, cross value)
-        # where index is index of image in the self.images_dict
         self.examples = []
 
         for source in self.data_sources:
@@ -131,6 +141,8 @@ class DataCollector:
             pbar = pkbar.Pbar(name='\nStart set_examples from ' + source['code'], target=len(source['surface_match_data']))
 
             for item in source['surface_match_data']:
+                counter += 1
+
                 root_frame_num = str(item[1]).zfill(4)
                 image_root_path = '\\' + source['code'] + '_images\\real\\scene-' + str(item[0]) + '\\' + root_frame_num + '.jpg'
                 image_root_index = self.images_dict_flip[image_root_path]
@@ -140,8 +152,9 @@ class DataCollector:
                 image_target_index = self.images_dict_flip[image_target_path]
 
                 self.examples.append((image_root_index, image_target_index, item[3]))
-                pbar.update(counter)
-                counter += 1
+
+                if counter % 10_000 == 0:
+                    pbar.update(counter)
 
     def set_grouped_examples(self):
         self.grouped_examples = [[] for i in range(GROUP_COUNT)]
@@ -154,7 +167,9 @@ class DataCollector:
             example_value = example[2]
             group = round(example_value * (GROUP_COUNT - 1))
             self.grouped_examples[group].append(example)
-            pbar.update(counter)
+
+            if counter % 10_000 == 0:
+                pbar.update(counter)
 
     def save_data(self):
         data_train = [[] for i in range(GROUP_COUNT)]
@@ -172,18 +187,7 @@ class DataCollector:
         file = os.path.join(self.train_dir, 'data_' + str(SIZE_X) + 'x' + str(SIZE_Y))
         np.savez_compressed(file,
                             data=data_train,
-                            images=self.images_np_arr)
-
-    def save_img(self):
-        pbar = pkbar.Pbar(name='\nsave_img', target=len(self.images_np_arr))
-
-        for i in range(len(self.images_np_arr)):
-            image = self.images_np_arr[i].astype('float32') / 255.
-            file = os.path.join(self.train_dir, 'images', str(i))
-            io.imsave(file + '.png', img_as_ubyte(image))
-
-            if i % 100 == 0:
-                pbar.update(i)
+                            images=self.images_dict)
 
 
 if __name__ == '__main__':
