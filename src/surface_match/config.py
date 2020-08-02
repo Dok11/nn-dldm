@@ -1,6 +1,7 @@
 import os
 
 
+FILE_NAME_DATA = 'experiment_data'
 FILE_NAME_TRAIN = 'experiment_train'
 FILE_NAME_VALID = 'experiment_valid'
 
