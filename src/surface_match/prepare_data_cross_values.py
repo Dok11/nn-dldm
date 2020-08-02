@@ -2,9 +2,9 @@ import json
 import os
 import re
 
+import pkbar
 import numpy as np
 from PIL import Image
-from tensorflow.python.keras.utils import Progbar
 
 ######################################################################
 #
@@ -135,7 +135,7 @@ class DatasetCollector:
         print('remain images to calc: ' + str(len(remain_images_to_calc)))
 
         # Progress bar for remain items to calculate
-        progress_bar = Progbar(len(remain_images_to_calc))
+        pbar = pkbar.Pbar(name='Remain images to calc', target=len(remain_images_to_calc))
 
         for image_file in remain_images_to_calc:
             img = Image.open(image_file['path'])
@@ -152,7 +152,7 @@ class DatasetCollector:
             counter += 1
 
             if counter % 5000 == 0:
-                progress_bar.add(5000)
+                pbar.update(counter)
 
             if counter % 1000000 == 0 and counter > 0:
                 print('\nSave file partial with new records ' + str(counter))
