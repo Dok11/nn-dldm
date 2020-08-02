@@ -1,107 +1,111 @@
-import os
-import shutil
-import time
+import torch
+import torch.nn.functional as f
+from torch import nn
+from torch.utils.data import DataLoader
+from torchvision import transforms
 
-import numpy as np
-import tensorflow as tf
-from tensorflow.python.keras.callbacks_v1 import TensorBoard
+from surface_match.config import SIZE_Y, SIZE_X
+from surface_match.surface_match_dataset import SurfaceMatchDataset
 
-from surface_match.config import CURRENT_DIR, SAVED_MODEL_W
-from surface_match.dataset import BatchGenerator, get_experimental_dataset
-from surface_match.model import get_model, save_models
-
-# seed = 1
-# np.random.seed(seed)
-# tf.compat.v1.random.set_random_seed(seed)
-
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.7)
-sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-
+# ============================================================================
+# --- Train and print accuracy -----------------------------------------------
+# ----------------------------------------------------------------------------
 
 # ============================================================================
 # --- Get neural network -----------------------------------------------------
 # ----------------------------------------------------------------------------
-
-model = get_model(use_model='MobileNetV2')
-model.summary()
-
-if os.path.isfile(SAVED_MODEL_W):
-    model.load_weights(SAVED_MODEL_W)
-    print('weights are loaded')
-    pass
-
 
 # ============================================================================
 # --- Create logger ----------------------------------------------------------
 # ----------------------------------------------------------------------------
 
 # tensorboard --logdir=./logs --host=127.0.0.1
-shutil.rmtree(os.path.join(CURRENT_DIR, 'logs'), ignore_errors=True)
+# shutil.rmtree(os.path.join(CURRENT_DIR, 'logs'), ignore_errors=True)
+#
+# callback = TensorBoard('./logs')
 
-callback = TensorBoard('./logs')
-callback.set_model(model)
-
-
-def write_log(callback_fn, names, current_logs, batch_no):
-    for name, value in zip(names, current_logs):
-        summary = tf.Summary()
-        summary_value = summary.value.add()
-        summary_value.simple_value = value
-        summary_value.tag = name
-        callback_fn.writer.add_summary(summary, batch_no)
-        callback_fn.writer.flush()
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
-# ============================================================================
-# --- Train and print accuracy -----------------------------------------------
-# ----------------------------------------------------------------------------
+class Model(nn.Module):
+    def __init__(self):
+        super().__init__()
 
-batch_generator = BatchGenerator()
-batch_generator.train_batch_size = 120
-batch_generator.load_dataset()
-# batch_generator.default_weight = 0.5 ** 2
-# batch_generator.init_weights()
-# batch_generator.load_example_weights()
-# batch_generator.init_weight_normalize()
+        self.conv1 = nn.Conv2d( 3, 16, 3, padding=1)
+        self.conv2 = nn.Conv2d(16, 32, 3, padding=1)
+        self.conv3 = nn.Conv2d(32, 64, 3, padding=1)
+        self.conv4 = nn.Conv2d(64, 128, 3, padding=1)
 
-# batch_exp_train = get_experimental_dataset(True)
-# batch_exp_valid = get_experimental_dataset(False)
+        self.fc1 = nn.Linear(14*14*128, 1024)
+        self.dropout1 = nn.Dropout(0.5)
 
-# train
-start_batch = 0
-sum_logs = []
-train_on_batch_time = 0
+        self.fc2 = nn.Linear(1024, 1)
 
-for batch_index in range(50000001):
-    batch = batch_index + start_batch
+    def forward(self, x1: torch.Tensor):
+        x1 = f.relu(self.conv1(x1))
+        x1 = f.max_pool2d(x1, 2, 2)
 
-    (t_images_1, t_images_2, t_results, indexes) = batch_generator.get_batch_train()
+        x1 = f.relu(self.conv2(x1))
+        x1 = f.max_pool2d(x1, 2, 2)
 
-    millis = time.time()
-    logs = model.train_on_batch(x=[t_images_1, t_images_2], y=t_results)
-    train_on_batch_time += time.time() - millis
+        x1 = f.relu(self.conv3(x1))
+        x1 = f.max_pool2d(x1, 2, 2)
 
-    sum_logs.append(logs)
+        x1 = f.relu(self.conv4(x1))
+        x1 = f.max_pool2d(x1, 2, 2)
 
-    if batch % 50 == 0 and batch > 0:
-        # Check model on the validation data
-        (v_images_1, v_images_2, v_results, indexes) = batch_generator.get_batch_valid()
-        v_loss = model.test_on_batch(x=[v_images_1, v_images_2], y=v_results)
+        x1 = x1.view(-1, self.num_flat_features(x1))
 
-        avg_logs = np.average(sum_logs, axis=0)
-        sum_logs = []
+        x1 = f.relu(self.fc1(x1))
+        x1 = self.dropout1(x1)
 
-        print('%d [loss: %f] [v. loss: %f] [train time: %f]' % (batch, avg_logs[1], v_loss[1], train_on_batch_time))
-        write_log(callback, ['train_loss', 't_loss_in_fact'], avg_logs, batch)
-        write_log(callback, ['val_loss', 'v_loss_in_fact'], v_loss, batch)
-        train_on_batch_time = 0
-        summary_time = 0
+        x1 = self.fc2(x1).view(-1)
 
-    if batch % 2000 == 0 and batch > 0:
-        # Update weights complexity
-        # batch_generator.update_weights_by_model(model)
-        pass
+        return x1
 
-    if batch % 1000 == 0 and batch > 0:
-        save_models(model)
-        # batch_generator.save_example_weights()
+    def num_flat_features(self, x):
+        size = x.size()[1:]  # all dimensions except the batch dimension
+        num_features = 1
+        for s in size:
+            num_features *= s
+        return num_features
+
+
+model = Model().to(device)
+
+print(model)
+
+criterion = nn.MSELoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0005)
+
+
+# file_path = os.path.join(os.getcwd(), '..', '..', 'train-data', 'surface_match', FILE_NAME_DATA + str('.npz'))
+# exp_sample = np.load(file_path, allow_pickle=True)['sample']
+# model.forward(exp_sample)
+
+transform_train = transforms.Compose([transforms.Resize((SIZE_Y, SIZE_X)),
+                                      # transforms.RandomHorizontalFlip(),
+                                      # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+                                      transforms.ToTensor(),
+                                      transforms.Normalize([0.5], [0.5])])
+
+dataset = SurfaceMatchDataset(transform=transform_train)
+dataset.load_dataset()
+dataset.init_weights()
+dataset.init_weight_normalize()
+
+data_loader = DataLoader(dataset, batch_size=4, num_workers=0)
+
+for i_batch, sample_batched in enumerate(data_loader):
+    input_images_1 = sample_batched['image_1'].to(device)
+    input_images_2 = sample_batched['image_2'].to(device)
+    real_outputs = sample_batched['result'].to(device)
+
+    outputs: torch.Tensor = model(input_images_1)
+    loss = criterion(outputs, real_outputs)
+
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    print(loss.item())
