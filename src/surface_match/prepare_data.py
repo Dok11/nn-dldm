@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import re
 
 import numpy as np
@@ -51,6 +52,7 @@ DATA_SOURCES = [
     DATASET['classroom'],
     DATASET['simple'],
 ]
+VALIDATION_PART = 0.3
 
 
 def get_image_as_np_array(path):
@@ -124,12 +126,12 @@ class DataCollector:
 
                 for file in files:
                     image_path = os.path.join(source['images_real'], folder, file)
-                    # image_np_arr = get_image_as_np_array(image_path)
+                    image_np_arr = get_image_as_np_array(image_path)
 
                     partial_path = re.sub(r'.+surface_match(.+)', r'\1', image_path)
 
                     self.images_dict.append(partial_path)
-                    # self.images_np_arr.append(image_np_arr)
+                    self.images_np_arr.append(image_np_arr)
 
         self.images_dict_flip = {self.images_dict[i]: i for i in range(0, len(self.images_dict))}
 
@@ -173,13 +175,18 @@ class DataCollector:
 
     def save_data(self):
         data_train = [[] for i in range(GROUP_COUNT)]
+        data_valid = [[] for i in range(GROUP_COUNT)]
 
         for group_index in range(len(self.grouped_examples)):
             group = self.grouped_examples[group_index]
 
             for example_index in range(len(group)):
                 example = group[example_index]
-                data_train[group_index].append(example)
+
+                if (random.randint(0, 100) / 100) > VALIDATION_PART:
+                    data_train[group_index].append(example)
+                else:
+                    data_valid[group_index].append(example)
 
         if not (os.path.isdir(self.train_dir)):
             os.mkdir(self.train_dir)
@@ -187,7 +194,9 @@ class DataCollector:
         file = os.path.join(self.train_dir, 'data_' + str(SIZE_X) + 'x' + str(SIZE_Y))
         np.savez_compressed(file,
                             data=data_train,
-                            images=self.images_dict)
+                            valid=data_valid,
+                            images=self.images_np_arr,
+                            images_path=self.images_dict)
 
 
 if __name__ == '__main__':

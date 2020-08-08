@@ -1,6 +1,5 @@
 import json
 import os
-import re
 from random import randint
 from typing import List
 
@@ -20,12 +19,15 @@ class SurfaceMatchDataset(Dataset):
         self.transform = transform
 
         self.data: List = []
+        self.data_valid: List = []
         self.data_weights: List[List[float]] = []
         self.data_weights_normalize: List[np.ndarray] = []
 
         self.hard_examples: List = []
         self.use_hard_examples = False
-        self.images: np.ndarray = np.array([])
+        self.use_valid = False
+        self.images: List = []
+        self.images_path: List = []
 
         self.default_weight: float = 0.5
         self.data_dir = os.path.join(CURRENT_DIR, '..', '..', 'train-data', 'surface_match')
@@ -47,14 +49,15 @@ class SurfaceMatchDataset(Dataset):
         else:
             group_weights = []
 
-        (image_1, image_2, result, index) = self.get_sample(group_index, group_weights)
+        (img_1, img_2, result, index) = self.get_sample(group_index, group_weights)
+
+        img_idx_1 = self.data[group_index][index][0]
+        img_idx_2 = self.data[group_index][index][1]
 
         sample = {
-            'image_1': image_1,
-            'image_2': image_2,
+            'image_1': Image.fromarray(img_1),
+            'image_2': Image.fromarray(img_2),
             'result': np.array(result, dtype=np.float32),
-            'image_1_path': self.images[self.data[group_index][index][0]],
-            'image_2_path': self.images[self.data[group_index][index][1]],
         }
 
         if self.transform:
@@ -64,7 +67,11 @@ class SurfaceMatchDataset(Dataset):
         return sample
 
     def load_dataset(self):
-        (self.data, self.images) = self.get_dataset(SIZE_X, SIZE_Y)
+        (self.data, self.data_valid, self.images, self.images_path)\
+            = self.get_dataset(SIZE_X, SIZE_Y)
+
+        # for i in range(len(images)):
+        #     self.images.append(Image.fromarray(images[i]))
 
     def load_hard_examples(self):
         path = os.path.join(CURRENT_DIR, 'hard_indexes.json')
@@ -81,29 +88,24 @@ class SurfaceMatchDataset(Dataset):
             self.hard_examples[hard_example[0]].append(example)
 
     def get_sample(self, group_index, weights):
-        group_len = len(self.data[group_index])
+        if self.use_valid:
+            group = self.data_valid[group_index]
+        else:
+            group = self.data[group_index]
+
+        group_len = len(group)
 
         if self.use_hard_examples and len(weights) == group_len:
-            group_samples_index = np.random.choice(group_len, 1, p=weights)[0]
+            sample_index = np.random.choice(group_len, 1, p=weights)[0]
         else:
-            group_samples_index = np.random.choice(group_len, 1)[0]
+            sample_index = np.random.choice(group_len, 1)[0]
 
-        img_idx_1, img_idx_2, result = self.data[group_index][group_samples_index]
+        img_idx_1, img_idx_2, result = group[sample_index]
 
-        cur_dir = os.getcwd()
+        img_1 = self.images[img_idx_1]
+        img_2 = self.images[img_idx_2]
 
-        # img_1_file_path = '\\'.join(list(map(str, filter(None, self.images[img_idx_1].split('\\')))))
-        img_1_file_path = re.sub(r'^\\', r'', self.images[img_idx_1])
-        # img_2_file_path = '\\'.join(list(map(str, filter(None, self.images[img_idx_2].split('\\')))))
-        img_2_file_path = re.sub(r'^\\', r'', self.images[img_idx_2])
-
-        img_1_path = os.path.join(cur_dir, '..', '..', 'data', 'surface_match', img_1_file_path)
-        img_2_path = os.path.join(cur_dir, '..', '..', 'data', 'surface_match', img_2_file_path)
-
-        group_image_1 = Image.open(img_1_path)
-        group_image_2 = Image.open(img_2_path)
-
-        return group_image_1, group_image_2, result, group_samples_index
+        return img_1, img_2, result, sample_index
 
     def init_weights(self):
         self.use_hard_examples = True
@@ -140,17 +142,7 @@ class SurfaceMatchDataset(Dataset):
         file_path = os.path.join(self.data_dir, 'data_' + str(x) + 'x' + str(y) + '.npz')
         file_data = np.load(file_path, allow_pickle=True)
 
-        return file_data['data'], file_data['images']
-
-    def load_images(self, idx):
-        loaded_images = []
-
-        for image_num in idx:
-            file_path = os.path.join(self.data_dir, 'images', str(image_num) + '.npz')
-            file_data = np.load(file_path)
-            loaded_images.append(file_data['arr_0'])
-
-        return loaded_images
+        return file_data['data'], file_data['valid'], file_data['images'], file_data['images_path']
 
     def save_example_weights(self):
         print('Saving example weights')
