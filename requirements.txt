@@ -1,5 +1,5 @@
 tensorflow==1.15.0
 tensorflow-gpu==1.15.0
 numpy==1.17.3
-pillow==6.2.1
+pillow==9.3.0
 tensorboard==1.14.0
